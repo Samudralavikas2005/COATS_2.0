@@ -27,7 +27,7 @@ function SupervisorDashboard() {
       return;
     }
 
-    fetch("http://127.0.0.1:8002/api/supervisor/overview/", {
+    fetch("http://127.0.0.1:8000/api/supervisor/overview/", {
       headers: {
         Authorization: `Bearer ${token}`,
       },

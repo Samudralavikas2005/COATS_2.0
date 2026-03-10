@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CoATS Backend (Case and Officer Tracking System)
 
 This repository contains the backend implementation of the CoATS project using Django and Django REST Framework with JWT-based authentication and role-based access control.
@@ -161,3 +162,44 @@ Officers cannot access the admin panel.
 
 This project implements a secure backend using Django, DRF, JWT authentication, and PostgreSQL with full role-based access control. All security and permissions are enforced at the backend level.
 
+=======
+# COATS – Case Management System (Backend)
+
+A role-based Case Management System built with **Django** and **Django REST Framework** to manage the complete lifecycle of cases — from registration to court closure — with integrated analytics for operational insights.
+
+---
+
+## 🚀 Features
+
+- 🔐 JWT Authentication
+- 👥 Role-based access control
+- 🗂 Case registration & tracking
+- ⚖ Court stage workflow
+- 📊 Dashboard statistics APIs
+- 📅 Case timeline analytics
+- ⏳ Case aging insights
+- 🏢 Police-station level data filtering
+
+---
+
+## 🧠 Dashboard Analytics
+
+The system provides APIs for:
+
+- Total cases
+- Cases by stage
+- Monthly case registration
+- Case aging buckets
+- Court-level distribution
+
+---
+
+## 🛠 Tech Stack
+
+- **Backend:** Django, Django REST Framework
+- **Database:** SQLite (Dev) / PostgreSQL (Prod-ready)
+- **Authentication:** JWT
+- **API Style:** REST
+
+---
+>>>>>>> 87061af0669e03187a5f10623a143e8d7b253514
