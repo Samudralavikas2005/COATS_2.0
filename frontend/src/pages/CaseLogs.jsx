@@ -12,7 +12,8 @@ const THEMES = {
   light: {
     bgBase: "#eef2fb", bgCard: "#ffffff", bgCardHover: "#f5f8ff",
     border: "#d2ddf0", textPrimary: "#111827", textSecond: "#4b5e80",
-    textMuted: "#434c5cs", accent: "#2563eb", green: "#059669",
+    textMuted: "#434c5c",   // ✅ FIXED: was "#434c5cs" (invalid CSS)
+    accent: "#2563eb", green: "#059669",
     red: "#dc2626", yellow: "#d97706", purple: "#7c3aed",
     shadow: "0 4px 20px rgba(20,40,100,0.10)", toggleBg: "#e2e8f7",
   },
@@ -26,7 +27,6 @@ const STAGE = {
   CC: { label: "Closed",              color: "#34d399" },
 };
 
-// What each log field means in plain English
 const FIELD_META = {
   current_stage:      { label: "Stage Change",       icon: "🔄" },
   action_to_be_taken: { label: "Action Updated",     icon: "📝" },
@@ -57,38 +57,29 @@ function HeaderBtn({ children, onClick, t, accent, outline = false }) {
   );
 }
 
-// ── Log entry row ─────────────────────────────────────────────────
 function LogRow({ log, t, last, navigate, index }) {
   const [expanded, setExpanded] = useState(false);
   const [hov, setHov] = useState(false);
 
-  const meta     = FIELD_META[log.field_changed] || { label: log.field_changed, icon: "✏️" };
-  const isStage  = log.field_changed === "current_stage";
-  const timeAgo  = getTimeAgo(log.timestamp);
+  const meta    = FIELD_META[log.field_changed] || { label: log.field_changed, icon: "✏️" };
+  const isStage = log.field_changed === "current_stage";
+  const timeAgo = getTimeAgo(log.timestamp);
 
   return (
-    <div
-      style={{ borderBottom: last ? "none" : `1px solid ${t.border}`, animation: "cFadeUp .3s ease both", animationDelay: `${index * 35}ms` }}
-    >
-      {/* ── Summary row ── */}
+    <div style={{ borderBottom: last ? "none" : `1px solid ${t.border}`, animation: "cFadeUp .3s ease both", animationDelay: `${index * 35}ms` }}>
       <div
         onClick={() => setExpanded(e => !e)}
         onMouseEnter={() => setHov(true)}
         onMouseLeave={() => setHov(false)}
         style={{ display: "grid", gridTemplateColumns: "2.5rem 2fr 2fr 1.5fr 1.5fr 1fr 1.5rem", alignItems: "center", padding: "0.85rem 1.2rem", background: hov ? t.bgCardHover : "transparent", cursor: "pointer", transition: "background .15s", gap: "0.5rem" }}
       >
-        {/* Icon */}
         <div style={{ fontSize: "1rem", textAlign: "center" }}>{meta.icon}</div>
 
-        {/* Change type */}
         <div>
           <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.82rem", fontWeight: 600, color: t.textPrimary }}>{meta.label}</div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted, marginTop: 2 }}>
-            {log.crime_number}
-          </div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted, marginTop: 2 }}>{log.crime_number}</div>
         </div>
 
-        {/* Officer */}
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <div style={{ width: 26, height: 26, borderRadius: "50%", background: `${t.accent}22`, border: `1px solid ${t.accent}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: t.accent, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
             {(log.updated_by || "?")[0].toUpperCase()}
@@ -99,7 +90,6 @@ function LogRow({ log, t, last, navigate, index }) {
           </div>
         </div>
 
-        {/* Old → New value */}
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem" }}>
           {isStage ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -109,31 +99,23 @@ function LogRow({ log, t, last, navigate, index }) {
             </div>
           ) : (
             <div style={{ color: t.textMuted }}>
-              <span style={{ color: t.red, textDecoration: "line-through", marginRight: 5 }}>
-                {truncate(log.old_value, 18)}
-              </span>
+              <span style={{ color: t.red, textDecoration: "line-through", marginRight: 5 }}>{truncate(log.old_value, 18)}</span>
               →
-              <span style={{ color: t.green, marginLeft: 5 }}>
-                {truncate(log.new_value, 18)}
-              </span>
+              <span style={{ color: t.green, marginLeft: 5 }}>{truncate(log.new_value, 18)}</span>
             </div>
           )}
         </div>
 
-        {/* Time */}
         <div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", color: t.textSecond }}>{timeAgo}</div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted, marginTop: 1 }}>{formatDate(log.timestamp)}</div>
         </div>
 
-        {/* Branch */}
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted }}>{log.branch || "—"}</div>
 
-        {/* Expand arrow */}
         <div style={{ color: t.textMuted, fontSize: "0.75rem", transition: "transform .2s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)", textAlign: "right" }}>›</div>
       </div>
 
-      {/* ── Expanded detail ── */}
       {expanded && (
         <div style={{ background: `${t.accent}07`, borderTop: `1px solid ${t.border}`, padding: "1rem 1.2rem 1rem 4.5rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
           <div>
@@ -161,7 +143,7 @@ function LogRow({ log, t, last, navigate, index }) {
               </div>
             ))}
             <div style={{ marginLeft: "auto" }}>
-              <HeaderBtn onClick={() => navigate(`/cases/${log.case_id}`)} t={{ border: "#222d42", textSecond: "#7b8db0", red: "#f87171" }} accent="#4f8ef7">
+              <HeaderBtn onClick={() => navigate(`/cases/${log.case_id}`)} t={t} accent="#4f8ef7">
                 View Case →
               </HeaderBtn>
             </div>
@@ -172,9 +154,6 @@ function LogRow({ log, t, last, navigate, index }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────────────────────────
 function CaseLogs() {
   const getTheme = () => {
     try { return localStorage.getItem("coats-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); }
@@ -186,14 +165,14 @@ function CaseLogs() {
   const username  = localStorage.getItem("username");
   const branch    = localStorage.getItem("branch");
 
-  const [theme, setTheme]         = useState(getTheme);
-  const [logs, setLogs]           = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState("");
-  const [search, setSearch]       = useState("");
+  const [theme, setTheme]             = useState(getTheme);
+  const [logs, setLogs]               = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState("");
+  const [search, setSearch]           = useState("");
   const [filterField, setFilterField] = useState("ALL");
   const [filterOfficer, setFilterOfficer] = useState("ALL");
-  const [lastSync, setLastSync]   = useState(null);
+  const [lastSync, setLastSync]       = useState(null);
 
   const t      = THEMES[theme];
   const isDark = theme === "dark";
@@ -214,21 +193,23 @@ function CaseLogs() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
-        if (res.status === 401) { localStorage.clear(); navigate("/login", { replace: true }); }
+        if (res.status === 401) { localStorage.clear(); navigate("/login", { replace: true }); return; }
         if (!res.ok) throw new Error("Failed to load logs");
         return res.json();
       })
-      .then(data => { setLogs(data); setError(""); setLoading(false); setLastSync(new Date()); })
+      .then(data => {
+        if (data) { setLogs(data); setError(""); setLastSync(new Date()); }
+        setLoading(false);
+      })
       .catch(err => { setError(err.message); setLoading(false); });
   }, [navigate]);
 
   useEffect(() => {
     fetchLogs();
-    const id = setInterval(fetchLogs, 10000); // refresh every 10s
+    const id = setInterval(fetchLogs, 10000);
     return () => clearInterval(id);
   }, [fetchLogs]);
 
-  // Unique officers for filter dropdown
   const officers = [...new Set(logs.map(l => l.updated_by).filter(Boolean))];
 
   const filtered = logs.filter(l => {
@@ -243,7 +224,6 @@ function CaseLogs() {
     return matchField && matchOfficer && matchSearch;
   });
 
-  // Stats
   const todayLogs  = logs.filter(l => isToday(l.timestamp)).length;
   const stageLogs  = logs.filter(l => l.field_changed === "current_stage").length;
   const actionLogs = logs.filter(l => l.field_changed === "action_to_be_taken").length;
@@ -288,7 +268,9 @@ function CaseLogs() {
                 </div>
               </div>
             </div>
-            <HeaderBtn onClick={() => navigate("/dashboard")} t={t} accent={t.purple}>📊 Dashboard</HeaderBtn>
+            {role === "SUPERVISOR" && (
+              <HeaderBtn onClick={() => navigate("/dashboard")} t={t} accent={t.purple}>📊 Dashboard</HeaderBtn>
+            )}
             <HeaderBtn onClick={() => navigate("/cases")} t={t} accent={t.accent}>📋 Cases</HeaderBtn>
             <HeaderBtn onClick={() => { localStorage.clear(); navigate("/login", { replace: true }); }} t={t} accent={t.red} outline>Logout</HeaderBtn>
           </div>
@@ -355,8 +337,6 @@ function CaseLogs() {
 
         {/* ── LOG TABLE ── */}
         <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, boxShadow: t.shadow, overflow: "hidden" }}>
-
-          {/* Column header */}
           <div style={{ display: "grid", gridTemplateColumns: "2.5rem 2fr 2fr 1.5fr 1.5fr 1fr 1.5rem", padding: "0.6rem 1.2rem", borderBottom: `1px solid ${t.border}`, gap: "0.5rem" }}>
             {["", "Change", "Officer", "Before → After", "When", "Branch", ""].map((h, i) => (
               <div key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted }}>{h}</div>
@@ -380,7 +360,6 @@ function CaseLogs() {
           )}
         </div>
 
-        {/* ── FOOTER NOTE ── */}
         <div style={{ marginTop: "1.25rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted, textAlign: "center" }}>
           Logs auto-refresh every 10 seconds · Click any row to expand full details
         </div>
@@ -394,25 +373,21 @@ function truncate(str, n) {
   if (!str) return "—";
   return str.length > n ? str.slice(0, n) + "…" : str;
 }
-
 function formatDate(ts) {
   if (!ts) return "—";
   return new Date(ts).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
-
 function isToday(ts) {
   if (!ts) return false;
-  const d = new Date(ts);
-  const n = new Date();
+  const d = new Date(ts), n = new Date();
   return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
 }
-
 function getTimeAgo(ts) {
   if (!ts) return "—";
   const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
-  if (diff < 60)          return `${diff}s ago`;
-  if (diff < 3600)        return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400)       return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
 }
 

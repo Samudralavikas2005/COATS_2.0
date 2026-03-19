@@ -18,16 +18,10 @@ const THEMES = {
   },
 };
 
-// Input field wrapper
 function Field({ label, required, children }) {
   return (
     <div style={{ marginBottom: "1.1rem" }}>
-      <label style={{
-        display: "block",
-        fontFamily: "'JetBrains Mono',monospace",
-        fontSize: "0.63rem", textTransform: "uppercase",
-        letterSpacing: "0.1em", marginBottom: 6,
-      }}>
+      <label style={{ display: "block", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
         {label}{required && <span style={{ color: "#f87171", marginLeft: 3 }}>*</span>}
       </label>
       {children}
@@ -46,10 +40,10 @@ function CreateCase() {
   const navigate = useNavigate();
   const branch   = localStorage.getItem("branch");
 
-  const [theme, setTheme]   = useState(getTheme);
+  const [theme, setTheme]         = useState(getTheme);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]   = useState("");
-  const [form, setForm]     = useState({
+  const [error, setError]         = useState("");
+  const [form, setForm]           = useState({
     ps_limit: "", crime_number: "", section_of_law: "",
     date_of_occurrence: "", date_of_registration: "",
     complainant_name: "", accused_details: "",
@@ -99,7 +93,6 @@ function CreateCase() {
     }
   };
 
-  // shared input style
   const inputStyle = {
     width: "100%", padding: "0.68rem 1rem",
     background: t.bgBase, border: `1px solid ${t.border}`,
@@ -154,7 +147,7 @@ function CreateCase() {
                 </div>
               </div>
             </div>
-            {/* Back button */}
+            {/* ✅ Single Back button — only in header */}
             <BackBtn onClick={() => navigate("/cases")} t={t} />
           </div>
         </div>
@@ -170,7 +163,7 @@ function CreateCase() {
         <form onSubmit={handleSubmit} style={{ animation: "cFadeUp .35s ease" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
 
-            {/* ── LEFT — Case Identifiers ── */}
+            {/* LEFT — Case Identifiers */}
             <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>
                 Case Identifiers
@@ -206,7 +199,7 @@ function CreateCase() {
               </Field>
             </div>
 
-            {/* ── RIGHT — Parties & Details ── */}
+            {/* RIGHT — Parties & Details */}
             <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>
                 Parties & Case Details
@@ -230,9 +223,8 @@ function CreateCase() {
             </div>
           </div>
 
-          {/* ── SUBMIT ROW ── */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: "1.5rem" }}>
-            <BackBtn onClick={() => navigate("/cases")} t={t} />
+          {/* ── SUBMIT ROW — only Submit button, Back is in header ── */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem" }}>
             <SubmitBtn submitting={submitting} accent={t.green} />
           </div>
         </form>
@@ -247,7 +239,7 @@ function BackBtn({ onClick, t }) {
   return (
     <button type="button" onClick={onClick}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", borderRadius: 8, padding: "6px 14px", transition: "all .2s", background: "transparent", border: `1px solid ${hov ? t.border : t.border}`, color: hov ? t.textPrimary : t.textSecond }}>
+      style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", borderRadius: 8, padding: "6px 14px", transition: "all .2s", background: "transparent", border: `1px solid ${t.border}`, color: hov ? t.textPrimary : t.textSecond }}>
       ← Back to Cases
     </button>
   );

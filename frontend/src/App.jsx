@@ -4,6 +4,7 @@ import Cases from "./pages/Cases";
 import CreateCase from "./pages/CreateCase";
 import CaseDetail from "./pages/CaseDetail";
 import COATSDashboard from "./pages/COATSDashboard";
+import CaseLogs from "./pages/CaseLogs";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -14,7 +15,7 @@ function App() {
         {/* Default — redirect based on role */}
         <Route path="/" element={<RoleRedirect />} />
 
-        {/* Login */}
+        {/* Public */}
         <Route path="/login" element={<Login />} />
 
         {/* Case Officer routes */}
@@ -39,18 +40,28 @@ function App() {
         <Route
           path="/create-case"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="CASE">
               <CreateCase />
             </ProtectedRoute>
           }
         />
 
-        {/* Supervisor — full analytics dashboard */}
+        {/* Supervisor routes */}
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="SUPERVISOR">
               <COATSDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Shared — both roles can view logs */}
+        <Route
+          path="/logs"
+          element={
+            <ProtectedRoute>
+              <CaseLogs />
             </ProtectedRoute>
           }
         />
@@ -64,6 +75,7 @@ function App() {
 }
 
 // Redirect "/" based on stored role
+// Role is always stored as uppercase (SUPERVISOR / CASE)
 function RoleRedirect() {
   const role = localStorage.getItem("role");
   if (role === "SUPERVISOR") return <Navigate to="/dashboard" replace />;

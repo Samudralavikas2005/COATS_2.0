@@ -121,6 +121,7 @@ function Cases() {
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState("");
   const [filterStage, setFilterStage] = useState("ALL");
+  const [lastSync, setLastSync]       = useState(null);
 
   const role     = localStorage.getItem("role");
   const username = localStorage.getItem("username");
@@ -150,18 +151,30 @@ function Cases() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
-        if (!res.ok) throw new Error("Unauthorized");
+        if (res.status === 401) {
+          localStorage.clear();
+          navigate("/login", { replace: true });
+          return;
+        }
+        if (!res.ok) throw new Error("Failed to load cases");
         return res.json();
       })
-      .then(data => { setCases(data); setError(""); setLoading(false); })
+      .then(data => {
+        if (data) {
+          setCases(data);
+          setError("");
+          setLastSync(new Date());
+        }
+        setLoading(false);
+      })
       .catch(err => { setError(err.message); setLoading(false); });
   }, [navigate]);
 
+  // Auto-refresh every 10 seconds
   useEffect(() => {
     fetchCases();
-    window.history.pushState(null, "", window.location.href);
-    window.onpopstate = () => window.history.pushState(null, "", window.location.href);
-    return () => { window.onpopstate = null; };
+    const id = setInterval(fetchCases, 10000);
+    return () => clearInterval(id);
   }, [fetchCases]);
 
   const filtered = cases.filter(c => {
@@ -204,6 +217,7 @@ function Cases() {
               <span style={{ color: t.accent }}>{username}</span>
               {" · "}{role === "CASE" ? "Case Officer" : "Supervisor"}
               {" · "}{branch}
+              {lastSync && <span style={{ marginLeft: 8 }}>· Synced {lastSync.toLocaleTimeString("en-IN")}</span>}
             </div>
           </div>
 
@@ -213,10 +227,7 @@ function Cases() {
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
                 {isDark ? "Dark" : "Light"}
               </span>
-              <div
-                onClick={toggleTheme}
-                style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer", transition: "background .25s" }}
-              >
+              <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer", transition: "background .25s" }}>
                 <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
                   {isDark ? "🌙" : "☀️"}
                 </div>
@@ -226,6 +237,7 @@ function Cases() {
             {role === "SUPERVISOR" && (
               <Btn onClick={() => navigate("/dashboard")} t={t} accent={t.purple}>📊 Dashboard</Btn>
             )}
+            <Btn onClick={() => navigate("/logs")} t={t} accent={t.accent}>📋 Logs</Btn>
             {role === "CASE" && (
               <Btn onClick={() => navigate("/create-case")} t={t} accent={t.green}>+ New Case</Btn>
             )}
@@ -296,7 +308,6 @@ function Cases() {
 
         {/* ── CASES TABLE ── */}
         <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, boxShadow: t.shadow, overflow: "hidden" }}>
-          {/* Table header */}
           <div style={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 1.5fr 1.2fr 0.5fr", padding: "0.6rem 1.2rem", borderBottom: `1px solid ${t.border}` }}>
             {["Crime No.", "IPC Section", "Stage", "Date Filed", ""].map((h, i) => (
               <div key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted }}>
@@ -305,7 +316,6 @@ function Cases() {
             ))}
           </div>
 
-          {/* Rows */}
           {loading ? (
             <div style={{ padding: "3rem", textAlign: "center", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.8rem" }}>
               <div style={{ fontSize: "1.5rem", marginBottom: 10, opacity: 0.3 }}>⏳</div>
@@ -318,15 +328,14 @@ function Cases() {
             </div>
           ) : (
             filtered.map((c, i) => (
-              <CaseRow
-                key={c.id} c={c} t={t}
-                last={i === filtered.length - 1}
-                navigate={navigate} index={i}
-              />
+              <CaseRow key={c.id} c={c} t={t} last={i === filtered.length - 1} navigate={navigate} index={i} />
             ))
           )}
         </div>
 
+        <div style={{ marginTop: "1rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted, textAlign: "center" }}>
+          Auto-refreshes every 10 seconds
+        </div>
       </div>
     </>
   );

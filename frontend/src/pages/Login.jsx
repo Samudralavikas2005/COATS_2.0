@@ -24,11 +24,11 @@ function Login() {
     } catch { return "dark"; }
   };
 
-  const [theme, setTheme]     = useState(getTheme);
+  const [theme, setTheme]       = useState(getTheme);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]     = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
   const navigate = useNavigate();
 
@@ -63,14 +63,16 @@ function Login() {
       localStorage.setItem("refresh", data.refresh);
 
       const payload = JSON.parse(atob(data.access.split(".")[1]));
-      localStorage.setItem("role",     payload.role);
+
+      // Always store role as UPPERCASE for consistent comparison everywhere
+      const role = (payload.role || "").toUpperCase();
+
+      localStorage.setItem("role",     role);
       localStorage.setItem("branch",   payload.branch);
       localStorage.setItem("username", payload.username);
-      localStorage.setItem("coats-theme", theme); // carry theme forward
+      localStorage.setItem("coats-theme", theme);
 
-      console.log("LOGIN PAYLOAD:", payload);
-
-      if (payload.role?.toLowerCase() === "supervisor") {
+      if (role === "SUPERVISOR") {
         navigate("/dashboard", { replace: true });
       } else {
         navigate("/cases", { replace: true });
@@ -101,7 +103,7 @@ function Login() {
         position: "relative",
       }}>
 
-        {/* ── THEME TOGGLE (top right) ── */}
+        {/* ── THEME TOGGLE ── */}
         <div style={{ position: "absolute", top: 24, right: 24, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
             {isDark ? "Dark" : "Light"}
@@ -121,8 +123,6 @@ function Login() {
           boxShadow: t.shadow,
           animation: "cFadeUp .4s ease",
         }}>
-
-          {/* Logo / Title */}
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
             <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>🚔</div>
             <h1 style={{ fontSize: "1.4rem", fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>
@@ -133,12 +133,9 @@ function Login() {
             </div>
           </div>
 
-          {/* Divider */}
           <div style={{ height: 1, background: t.border, marginBottom: "1.75rem" }} />
 
-          {/* Form */}
           <form onSubmit={handleLogin}>
-
             {/* Username */}
             <div style={{ marginBottom: "1rem" }}>
               <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6 }}>
@@ -150,13 +147,7 @@ function Login() {
                 placeholder="Enter your username"
                 required
                 autoComplete="username"
-                style={{
-                  width: "100%", padding: "0.7rem 1rem",
-                  background: t.bgBase, border: `1px solid ${t.border}`,
-                  borderRadius: 10, color: t.textPrimary,
-                  fontFamily: "'Sora',sans-serif", fontSize: "0.88rem",
-                  outline: "none", transition: "border-color .2s",
-                }}
+                style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
                 onFocus={e => e.target.style.borderColor = t.accent}
                 onBlur={e => e.target.style.borderColor = t.border}
               />
@@ -175,17 +166,10 @@ function Login() {
                   placeholder="Enter your password"
                   required
                   autoComplete="current-password"
-                  style={{
-                    width: "100%", padding: "0.7rem 2.8rem 0.7rem 1rem",
-                    background: t.bgBase, border: `1px solid ${t.border}`,
-                    borderRadius: 10, color: t.textPrimary,
-                    fontFamily: "'Sora',sans-serif", fontSize: "0.88rem",
-                    outline: "none", transition: "border-color .2s",
-                  }}
+                  style={{ width: "100%", padding: "0.7rem 2.8rem 0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
                   onFocus={e => e.target.style.borderColor = t.accent}
                   onBlur={e => e.target.style.borderColor = t.border}
                 />
-                {/* Show/hide toggle */}
                 <button
                   type="button"
                   onClick={() => setShowPass(p => !p)}
@@ -196,23 +180,19 @@ function Login() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div style={{ background: `${t.red}15`, border: `1px solid ${t.red}44`, borderRadius: 8, padding: "8px 12px", marginBottom: "1rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", color: t.red, animation: "cShake .4s ease" }}>
                 ⚠️ {error}
               </div>
             )}
 
-            {/* Submit */}
             <LoginButton loading={loading} accent={t.accent} />
           </form>
 
-          {/* Footer */}
           <div style={{ marginTop: "1.5rem", textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", color: t.textMuted }}>
-            Authorized personnel only · COATS v1.0
+            Authorized personnel only · COATS v2.0
           </div>
         </div>
-
       </div>
     </>
   );
