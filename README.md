@@ -10,13 +10,18 @@ A secure, full-stack case management system built for law enforcement agencies t
 - 👮 Two roles — Supervisor and Case Holding Officer
 - 🗂 Case registration, tracking and lifecycle management
 - ⚖️ Court stage workflow (UI → PT → HC → SC → CC)
-- 🔗 Chain of Custody — immutable timeline for every case
+- 🔗 Chain of Custody — immutable append-only timeline for every case
 - 📋 Field-level audit logs for every case update
-- 📊 Supervisor dashboard with live analytics
+- 📊 Investigation progress entries with reminder dates and completion tracking
+- 👮 Case handover — Supervisors can reassign cases with full history
+- 📄 Report download — full case report as PDF or CSV
+- 📊 Supervisor dashboard with live analytics (KPI, severity, timeline)
 - ⛓️ Blockchain anchoring — every log hashed to Sepolia testnet
 - 🔒 Mandatory reason enforcement for all case updates
 - 🌐 IP address tracking on all actions
 - 📅 Auto-refresh on cases page every 10 seconds
+- 🌗 Dark / Light theme toggle (persisted)
+- 🐳 Docker support for containerized deployment
 
 ---
 
@@ -31,6 +36,8 @@ A secure, full-stack case management system built for law enforcement agencies t
 | Blockchain | Ethereum Sepolia Testnet via Alchemy |
 | Smart Contract | Solidity 0.8.0 |
 | Web3 | web3.py 7.x |
+| PDF Reports | ReportLab |
+| Containerization | Docker, Docker Compose |
 
 ---
 
@@ -38,7 +45,7 @@ A secure, full-stack case management system built for law enforcement agencies t
 ```
 coats/
 ├── accounts/          # Custom user model, login audit log
-├── cases/             # Case, CaseLog, ChainOfCustody models
+├── cases/             # Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover models
 ├── blockchain/        # Smart contract, deploy script, service
 │   ├── contract.sol
 │   ├── deploy.py
@@ -46,6 +53,8 @@ coats/
 │   └── abi.json
 ├── coats/             # Django settings, urls, wsgi
 ├── frontend/          # React frontend (Vite)
+├── Dockerfile
+├── docker-compose.yml
 ├── manage.py
 ├── requirements.txt
 └── .env
@@ -79,6 +88,8 @@ psql
 CREATE DATABASE coats_db;
 CREATE USER coats_user WITH PASSWORD 'strongpassword';
 GRANT ALL PRIVILEGES ON DATABASE coats_db TO coats_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO coats_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO coats_user;
 \q
 exit
 ```
@@ -106,21 +117,47 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-### 7. Create superuser
+### 7. Grant DB permissions (if adding new models later)
+```bash
+sudo -i -u postgres psql -d coats_db -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO coats_user; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO coats_user;"
+```
+
+### 8. Create superuser
 ```bash
 python manage.py createsuperuser
 ```
 
-### 8. Start backend
+### 9. Start backend
 ```bash
 python manage.py runserver
 ```
 
-### 9. Start frontend
+### 10. Start frontend
 ```bash
 cd frontend
 npm install
 npm run dev
+```
+
+---
+
+## 🐳 Docker Setup (Alternative)
+
+Run the entire stack — PostgreSQL, Django backend, and React frontend — in containers:
+```bash
+docker-compose up --build
+```
+
+| Service | URL |
+|---|---|
+| Backend | http://localhost:8000 |
+| Frontend | http://localhost:5173 |
+
+> **Note:** Set `DB_HOST=db` in your `.env` when using Docker.
+
+To stop and clean up:
+```bash
+docker-compose down -v
 ```
 
 ---
@@ -135,11 +172,13 @@ python blockchain/deploy.py
 Copy the printed contract address into your `.env` as `CONTRACT_ADDRESS`.
 
 ### How it works
-Every case log entry, chain of custody event, and login attempt is:
+Every case log entry, chain of custody event, progress entry, handover, and login attempt is:
 1. Hashed using SHA-256
-2. Anchored to the Sepolia Ethereum testnet
+2. Anchored to the Sepolia Ethereum testnet in a background thread
 3. Transaction ID stored in the database
 4. Verifiable by anyone on [sepolia.etherscan.io](https://sepolia.etherscan.io)
+
+A threading lock ensures transactions are serialized to prevent nonce collision errors.
 
 ---
 
@@ -152,8 +191,14 @@ Every case log entry, chain of custody event, and login attempt is:
 | GET/POST | `/api/cases/` | List / create cases |
 | GET/PATCH | `/api/cases/<id>/` | Get / update case |
 | GET | `/api/cases/<id>/custody/` | Chain of custody |
+| GET/POST | `/api/cases/<id>/progress/` | Progress entries |
+| PATCH | `/api/progress/<id>/complete/` | Mark progress done |
+| GET/POST | `/api/cases/<id>/handover/` | Case handover |
+| GET | `/api/cases/<id>/report/pdf/` | Download PDF report |
+| GET | `/api/cases/<id>/report/csv/` | Download CSV report |
 | GET | `/api/case-logs/` | All audit logs |
 | GET | `/api/case-logs/<id>/verify/` | Verify log on blockchain |
+| GET | `/api/officers/` | List case officers |
 | GET | `/api/dashboard/kpi/` | Dashboard KPIs |
 | GET | `/api/dashboard/by-severity/` | Cases by severity |
 | GET | `/api/dashboard/timeline/` | Monthly timeline |
@@ -165,8 +210,8 @@ Every case log entry, chain of custody event, and login attempt is:
 
 | Role | Permissions |
 |---|---|
-| SUPERVISOR | View all cases, view dashboard, view logs |
-| CASE | Create cases, update own cases, view own logs |
+| SUPERVISOR | View all cases, dashboard, logs, handover cases, download reports |
+| CASE | Create cases, update own cases, add progress entries, download reports |
 
 ---
 
@@ -180,6 +225,17 @@ Every case log entry, chain of custody event, and login attempt is:
 - IP address recorded on every action
 - All sensitive config loaded from environment variables
 - Blockchain anchoring for tamper-proof evidence
+- Threading lock on blockchain transactions to prevent nonce collisions
+
+---
+
+## 📄 Reports
+
+Each case can be exported as:
+- **PDF** — professional formatted report with all sections (case details, custody timeline, progress, handovers, audit log)
+- **CSV** — full data export for analysis
+
+Download buttons are available on every case detail page.
 
 ---
 
