@@ -5,7 +5,13 @@ from .views import (
     CaseLogListView,
     CaseLogVerifyView,
     ChainOfCustodyView,
+    CaseProgressListCreateView,
+    CaseProgressCompleteView,
+    CaseHandoverView,
+    OfficersListView,
     SupervisorCaseOverview,
+    CaseReportPDFView,
+    CaseReportCSVView,
 )
 from .dashboard_views import (
     DashboardKPIView,
@@ -15,14 +21,26 @@ from .dashboard_views import (
 )
 
 urlpatterns = [
-    path("cases/",                          CaseListCreateView.as_view()),
-    path("cases/<uuid:pk>/",                CaseDetailUpdateView.as_view()),
-    path("cases/<uuid:pk>/custody/",        ChainOfCustodyView.as_view()),
-    path("case-logs/",                      CaseLogListView.as_view()),
-    path("case-logs/<int:pk>/verify/",      CaseLogVerifyView.as_view()),
-    path("supervisor/overview/",            SupervisorCaseOverview.as_view()),
-    path("dashboard/kpi/",                  DashboardKPIView.as_view()),
-    path("dashboard/by-severity/",          DashboardBySeverityView.as_view()),
-    path("dashboard/timeline/",             DashboardTimelineView.as_view()),
-    path("dashboard/recent-cases/",         DashboardRecentCasesView.as_view()),
+    # ── Cases ─────────────────────────────────────────────────────
+    path("cases/",                              CaseListCreateView.as_view()),
+    path("cases/<uuid:pk>/",                    CaseDetailUpdateView.as_view()),
+    path("cases/<uuid:pk>/custody/",            ChainOfCustodyView.as_view()),
+    path("cases/<uuid:pk>/progress/",           CaseProgressListCreateView.as_view()),
+    path("cases/<uuid:pk>/handover/",           CaseHandoverView.as_view()),
+    path("cases/<uuid:pk>/report/pdf/",         CaseReportPDFView.as_view()),
+    path("cases/<uuid:pk>/report/csv/",         CaseReportCSVView.as_view()),
+    # ── Progress ──────────────────────────────────────────────────
+    path("progress/<int:pk>/complete/",         CaseProgressCompleteView.as_view()),
+    # ── Logs ──────────────────────────────────────────────────────
+    path("case-logs/",                          CaseLogListView.as_view()),
+    path("case-logs/<int:pk>/verify/",          CaseLogVerifyView.as_view()),
+    # ── Officers ──────────────────────────────────────────────────
+    path("officers/",                           OfficersListView.as_view()),
+    # ── Supervisor ────────────────────────────────────────────────
+    path("supervisor/overview/",                SupervisorCaseOverview.as_view()),
+    # ── Dashboard ─────────────────────────────────────────────────
+    path("dashboard/kpi/",                      DashboardKPIView.as_view()),
+    path("dashboard/by-severity/",              DashboardBySeverityView.as_view()),
+    path("dashboard/timeline/",                 DashboardTimelineView.as_view()),
+    path("dashboard/recent-cases/",             DashboardRecentCasesView.as_view()),
 ]

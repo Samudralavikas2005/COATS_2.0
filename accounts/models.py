@@ -8,13 +8,18 @@ class User(AbstractUser):
         ('CASE', 'Case Holding Officer'),
     )
     BRANCH_CHOICES = (
-        ('HQ', 'Headquarters'),
+        ('HQ',  'Headquarters'),
         ('CNI', 'Chennai'),
         ('MDU', 'Madurai'),
         ('CMB', 'Coimbatore'),
     )
     role   = models.CharField(max_length=15, choices=ROLE_CHOICES)
     branch = models.CharField(max_length=10, choices=BRANCH_CHOICES)
+    photo  = models.ImageField(
+        upload_to='officer_photos/',
+        null=True,
+        blank=True
+    )
 
 
 class LoginAuditLog(models.Model):

@@ -3,13 +3,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count
 from django.db.models.functions import TruncMonth
-from django.utils import timezone
+from django.utils.dateparse import parse_date
 from datetime import date
 
 from .models import Case
 
-# ── IPC Section → Severity mapping ──────────────────────────────────────────
-# Extend this dict to cover all sections your officers use.
+# ── IPC Section → Severity mapping ───────────────────────────────
 IPC_SEVERITY_MAP = {
     # Minor
     "IPC 279": "Minor", "IPC 283": "Minor", "IPC 290": "Minor",
@@ -30,27 +29,44 @@ CLOSED_STAGE  = "CC"
 
 
 def get_severity(section_of_law: str) -> str:
-    """
-    Determine severity from the section_of_law field.
-    Does a case-insensitive prefix/contains check against IPC_SEVERITY_MAP.
-    Falls back to 'Non-Bailable' if unrecognised.
-    """
     s = section_of_law.strip().upper()
     for key, sev in IPC_SEVERITY_MAP.items():
         if key.upper() in s:
             return sev
-    return "Non-Bailable"   # safe default for unknown sections
+    return "Non-Bailable"
 
 
-# ── 1. KPI endpoint ──────────────────────────────────────────────────────────
+def apply_filters(request, qs):
+    """
+    Apply branch and date range filters from query params.
+    Supports:
+      ?branch=CNI
+      ?date_from=2025-01-01
+      ?date_to=2025-12-31
+    """
+    branch    = request.query_params.get("branch")
+    date_from = request.query_params.get("date_from")
+    date_to   = request.query_params.get("date_to")
+
+    if branch and branch != "ALL":
+        qs = qs.filter(branch=branch)
+    if date_from:
+        parsed = parse_date(date_from)
+        if parsed:
+            qs = qs.filter(date_of_registration__gte=parsed)
+    if date_to:
+        parsed = parse_date(date_to)
+        if parsed:
+            qs = qs.filter(date_of_registration__lte=parsed)
+
+    return qs
+
+
+# ── 1. KPI endpoint ───────────────────────────────────────────────
 class DashboardKPIView(APIView):
     """
     GET /api/dashboard/kpi/
-    Returns:
-      {
-        total_cases, active_cases, closed_cases, cases_this_month
-      }
-    Only SUPERVISOR can access; Case Officers see their own slice.
+    Supports ?branch=CNI&date_from=2025-01-01&date_to=2025-12-31
     """
     permission_classes = [IsAuthenticated]
 
@@ -62,30 +78,25 @@ class DashboardKPIView(APIView):
         else:
             qs = Case.objects.filter(case_holding_officer=user)
 
+        qs    = apply_filters(request, qs)
         today = date.today()
+
         return Response({
-            "total_cases":       qs.count(),
-            "active_cases":      qs.filter(current_stage__in=ACTIVE_STAGES).count(),
-            "closed_cases":      qs.filter(current_stage=CLOSED_STAGE).count(),
-            "cases_this_month":  qs.filter(
-                                     date_of_registration__year=today.year,
-                                     date_of_registration__month=today.month,
-                                 ).count(),
+            "total_cases":      qs.count(),
+            "active_cases":     qs.filter(current_stage__in=ACTIVE_STAGES).count(),
+            "closed_cases":     qs.filter(current_stage=CLOSED_STAGE).count(),
+            "cases_this_month": qs.filter(
+                date_of_registration__year=today.year,
+                date_of_registration__month=today.month,
+            ).count(),
         })
 
 
-# ── 2. By-severity endpoint ───────────────────────────────────────────────────
+# ── 2. By-severity endpoint ───────────────────────────────────────
 class DashboardBySeverityView(APIView):
     """
     GET /api/dashboard/by-severity/
-    Returns:
-      [
-        { "severity": "Minor",        "total": N },
-        { "severity": "Bailable",     "total": N },
-        { "severity": "Non-Bailable", "total": N },
-        { "severity": "Heinous",      "total": N },
-      ]
-    Severity is derived from section_of_law using IPC_SEVERITY_MAP.
+    Supports ?branch=CNI&date_from=...&date_to=...
     """
     permission_classes = [IsAuthenticated]
 
@@ -96,6 +107,8 @@ class DashboardBySeverityView(APIView):
             qs = Case.objects.all()
         else:
             qs = Case.objects.filter(case_holding_officer=user)
+
+        qs = apply_filters(request, qs)
 
         severity_counts = {"Minor": 0, "Bailable": 0, "Non-Bailable": 0, "Heinous": 0}
 
@@ -103,22 +116,17 @@ class DashboardBySeverityView(APIView):
             sev = get_severity(section)
             severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
-        result = [
+        return Response([
             {"severity": sev, "total": count}
             for sev, count in severity_counts.items()
-        ]
-        return Response(result)
+        ])
 
 
-# ── 3. Timeline endpoint ──────────────────────────────────────────────────────
+# ── 3. Timeline endpoint ──────────────────────────────────────────
 class DashboardTimelineView(APIView):
     """
     GET /api/dashboard/timeline/
-    Returns monthly case counts (last 12 months):
-      [
-        { "month": "2025-01-01", "total": N },
-        ...
-      ]
+    Supports ?branch=CNI&date_from=...&date_to=...
     """
     permission_classes = [IsAuthenticated]
 
@@ -129,6 +137,8 @@ class DashboardTimelineView(APIView):
             qs = Case.objects.all()
         else:
             qs = Case.objects.filter(case_holding_officer=user)
+
+        qs = apply_filters(request, qs)
 
         data = (
             qs
@@ -147,18 +157,11 @@ class DashboardTimelineView(APIView):
         ])
 
 
-# ── 4. Recent cases endpoint ──────────────────────────────────────────────────
+# ── 4. Recent cases endpoint ──────────────────────────────────────
 class DashboardRecentCasesView(APIView):
     """
     GET /api/dashboard/recent-cases/
-    Returns last 10 cases (newest first):
-      [
-        {
-          "id", "case_number", "ipc_section",
-          "severity", "status", "date_of_registration"
-        },
-        ...
-      ]
+    Supports ?branch=CNI&date_from=...&date_to=...
     """
     permission_classes = [IsAuthenticated]
 
@@ -178,16 +181,18 @@ class DashboardRecentCasesView(APIView):
         else:
             qs = Case.objects.filter(case_holding_officer=user)
 
+        qs     = apply_filters(request, qs)
         recent = qs.order_by("-date_of_registration", "-date_of_first_updation")[:10]
 
         return Response([
             {
-                "id":                    str(c.id),
-                "case_number":           c.crime_number,
-                "ipc_section":           c.section_of_law,
-                "severity":              get_severity(c.section_of_law),
-                "status":                self.STAGE_LABEL.get(c.current_stage, c.current_stage),
-                "date_of_registration":  c.date_of_registration.strftime("%Y-%m-%d"),
+                "id":                   str(c.id),
+                "case_number":          c.crime_number,
+                "ipc_section":          c.section_of_law,
+                "severity":             get_severity(c.section_of_law),
+                "status":               self.STAGE_LABEL.get(c.current_stage, c.current_stage),
+                "branch":               c.branch,
+                "date_of_registration": c.date_of_registration.strftime("%Y-%m-%d"),
             }
             for c in recent
         ])

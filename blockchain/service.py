@@ -4,12 +4,14 @@ import hashlib
 from dotenv import load_dotenv
 from web3 import Web3
 from pathlib import Path
+import threading
 
 load_dotenv()
 
 
 class BlockchainService:
     _instance = None
+    _nonce_lock = threading.Lock()
 
     def __new__(cls):
         if cls._instance is None:
@@ -105,10 +107,14 @@ class BlockchainService:
         """Core anchor function used by all anchor methods."""
         if not self.enabled:
             return {"error": "Blockchain service not enabled"}
+        with self._nonce_lock:
+          return self._anchor_locked(log_hash, case_id, crime_number)
+
+    def _anchor_locked(self, log_hash: str, case_id: str, crime_number: str) -> dict:
         try:
             hash_bytes = bytes.fromhex(log_hash)
             account    = self.w3.eth.account.from_key(self.private_key)
-            nonce      = self.w3.eth.get_transaction_count(account.address)
+            nonce      = self.w3.eth.get_transaction_count(account.address, 'pending')
 
             gas_estimate = self.contract.functions.anchorLog(
                 hash_bytes,

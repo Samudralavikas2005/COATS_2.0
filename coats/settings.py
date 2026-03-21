@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'accounts',
     'cases',
 ]
@@ -43,6 +44,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # ── JWT ───────────────────────────────────────────────────────────
@@ -110,14 +112,27 @@ USE_I18N = True
 USE_TZ = True
 
 # ── Static files ───────────────────────────────────────────────────
-STATIC_URL = 'static/'
+STATIC_URL  = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 LOGIN_REDIRECT_URL  = '/api/cases/'
 LOGOUT_REDIRECT_URL = '/api-auth/login/'
+
+# ── Media files (officer photos) ──────────────────────────────────
+MEDIA_URL  = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # ── CORS ───────────────────────────────────────────────────────────
 _cors_env = os.environ.get(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:5173,http://127.0.0.1:5173"
 )
-CORS_ALLOWED_ORIGINS  = [o.strip() for o in _cors_env.split(",") if o.strip()]
+CORS_ALLOWED_ORIGINS   = [o.strip() for o in _cors_env.split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
+
+# ── Spectacular (Swagger) ──────────────────────────────────────────
+SPECTACULAR_SETTINGS = {
+    'TITLE':       'COATS API',
+    'DESCRIPTION': 'Case & Offence Administration Tracking System',
+    'VERSION':     '2.0.0',
+}

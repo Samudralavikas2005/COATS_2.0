@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import Login from "./pages/Login";
 import Cases from "./pages/Cases";
 import CreateCase from "./pages/CreateCase";
@@ -6,8 +7,18 @@ import CaseDetail from "./pages/CaseDetail";
 import COATSDashboard from "./pages/COATSDashboard";
 import CaseLogs from "./pages/CaseLogs";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { startSessionTimeout, stopSessionTimeout } from "./utils/sessionTimeout";
 
 function App() {
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    // Only start session timeout if user is logged in
+    if (role) {
+      startSessionTimeout();
+    }
+    return () => stopSessionTimeout();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
@@ -27,7 +38,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/cases/:id"
           element={
@@ -36,7 +46,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/create-case"
           element={
@@ -74,8 +83,6 @@ function App() {
   );
 }
 
-// Redirect "/" based on stored role
-// Role is always stored as uppercase (SUPERVISOR / CASE)
 function RoleRedirect() {
   const role = localStorage.getItem("role");
   if (role === "SUPERVISOR") return <Navigate to="/dashboard" replace />;
