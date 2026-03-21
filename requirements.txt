@@ -5,3 +5,8 @@ djangorestframework_simplejwt==5.5.1
 psycopg2-binary==2.9.11
 PyJWT==2.11.0
 sqlparse==0.5.5
+django-cors-headers==4.7.0
+python-dotenv==1.1.0
+web3==7.14.1
+py-solc-x==2.0.3
+eth-account==0.13.5
