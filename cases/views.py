@@ -1,3 +1,4 @@
+import threading
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -27,6 +28,23 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
+def anchor_in_background(anchor_fn, obj, model_class, pk):
+    """
+    Runs blockchain anchoring in a background thread
+    so the API response is not delayed.
+    """
+    def run():
+        result = anchor_fn(obj)
+        if "tx_hash" in result:
+            model_class.objects.filter(pk=pk).update(
+                blockchain_tx=result["tx_hash"],
+                blockchain_hash=result["log_hash"],
+                blockchain_block=result["block"],
+                blockchain_url=result["etherscan"],
+            )
+    threading.Thread(target=run, daemon=True).start()
+
+
 def record_custody(case, user, action, reason="", notes="",
                    field_changed="", old_value="", new_value="",
                    ip_address=None):
@@ -47,15 +65,11 @@ def record_custody(case, user, action, reason="", notes="",
         ip_address=ip_address,
     )
 
-    # ── Anchor custody entry to Sepolia ───────────────────────────
-    result = blockchain.anchor_custody(entry)
-    if "tx_hash" in result:
-        ChainOfCustody.objects.filter(pk=entry.pk).update(
-            blockchain_tx=result["tx_hash"],
-            blockchain_hash=result["log_hash"],
-            blockchain_block=result["block"],
-            blockchain_url=result["etherscan"],
-        )
+    # ── Anchor custody entry in background ───────────────────────
+    anchor_in_background(
+        blockchain.anchor_custody,
+        entry, ChainOfCustody, entry.pk
+    )
 
 
 class CaseListCreateView(generics.ListCreateAPIView):
@@ -78,15 +92,11 @@ class CaseListCreateView(generics.ListCreateAPIView):
             branch=user.branch
         )
 
-        # ── Anchor case creation to Sepolia ───────────────────────
-        result = blockchain.anchor_case_create(case, user)
-        if "tx_hash" in result:
-            Case.objects.filter(pk=case.pk).update(
-                blockchain_tx=result["tx_hash"],
-                blockchain_hash=result["log_hash"],
-                blockchain_block=result["block"],
-                blockchain_url=result["etherscan"],
-            )
+        # ── Anchor case creation in background ────────────────────
+        anchor_in_background(
+            lambda c: blockchain.anchor_case_create(c, user),
+            case, Case, case.pk
+        )
 
         record_custody(
             case=case,
@@ -162,15 +172,11 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
                     branch=updated.branch,
                 )
 
-                # ── Anchor CaseLog to Sepolia ─────────────────────
-                result = blockchain.anchor_log(log)
-                if "tx_hash" in result:
-                    CaseLog.objects.filter(pk=log.pk).update(
-                        blockchain_tx=result["tx_hash"],
-                        blockchain_hash=result["log_hash"],
-                        blockchain_block=result["block"],
-                        blockchain_url=result["etherscan"],
-                    )
+                # ── Anchor CaseLog in background ──────────────────
+                anchor_in_background(
+                    blockchain.anchor_log,
+                    log, CaseLog, log.pk
+                )
 
                 # Chain of Custody entry
                 if field == "current_stage":

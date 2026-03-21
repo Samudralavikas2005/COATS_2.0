@@ -1,7 +1,8 @@
+import threading
+import datetime
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.response import Response
 from rest_framework import status
-import datetime
 
 from .serializers import CustomTokenObtainPairSerializer
 from .models import LoginAuditLog
@@ -29,14 +30,42 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         try:
             serializer.is_valid(raise_exception=True)
         except Exception:
-            # ── Failed login — anchor to Sepolia ──────────────────
+            # ── Record failed login ───────────────────────────────
             log = LoginAuditLog.objects.create(
                 username=username,
                 ip_address=ip,
                 success=False,
                 user_agent=user_agent,
             )
-            result = blockchain.anchor_login(username, ip, timestamp, False)
+
+            # ── Anchor in background ──────────────────────────────
+            def _anchor_failed():
+                result = blockchain.anchor_login(username, ip, timestamp, False)
+                if "tx_hash" in result:
+                    LoginAuditLog.objects.filter(pk=log.pk).update(
+                        blockchain_tx=result["tx_hash"],
+                        blockchain_hash=result["log_hash"],
+                        blockchain_block=result["block"],
+                        blockchain_url=result["etherscan"],
+                    )
+            threading.Thread(target=_anchor_failed, daemon=True).start()
+
+            return Response(
+                {"detail": "Invalid credentials"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # ── Record successful login ───────────────────────────────
+        log = LoginAuditLog.objects.create(
+            username=username,
+            ip_address=ip,
+            success=True,
+            user_agent=user_agent,
+        )
+
+        # ── Anchor in background ──────────────────────────────────
+        def _anchor_success():
+            result = blockchain.anchor_login(username, ip, timestamp, True)
             if "tx_hash" in result:
                 LoginAuditLog.objects.filter(pk=log.pk).update(
                     blockchain_tx=result["tx_hash"],
@@ -44,26 +73,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     blockchain_block=result["block"],
                     blockchain_url=result["etherscan"],
                 )
-            return Response(
-                {"detail": "Invalid credentials"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        # ── Successful login — anchor to Sepolia ──────────────────
-        log = LoginAuditLog.objects.create(
-            username=username,
-            ip_address=ip,
-            success=True,
-            user_agent=user_agent,
-        )
-        result = blockchain.anchor_login(username, ip, timestamp, True)
-        if "tx_hash" in result:
-            LoginAuditLog.objects.filter(pk=log.pk).update(
-                blockchain_tx=result["tx_hash"],
-                blockchain_hash=result["log_hash"],
-                blockchain_block=result["block"],
-                blockchain_url=result["etherscan"],
-            )
+        threading.Thread(target=_anchor_success, daemon=True).start()
 
         return Response(
             serializer.validated_data,
