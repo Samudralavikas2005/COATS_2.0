@@ -10,16 +10,13 @@ from datetime import timedelta
 from .models import Case, CaseLog, ChainOfCustody
 from .serializers import CaseSerializer, CaseLogSerializer, ChainOfCustodySerializer
 from .permissions import IsCaseOwner
+from blockchain.service import blockchain
 
-
-# ── Tracked fields for CaseLog ────────────────────────────────────
 TRACKED_FIELDS = [
     "current_stage", "action_to_be_taken", "section_of_law",
     "complainant_name", "accused_details", "gist_of_case", "ps_limit",
 ]
 
-# How long before the same officer viewing the same case
-# is logged again (prevents spam on refresh)
 VIEW_COOLDOWN_MINUTES = 5
 
 
@@ -33,7 +30,7 @@ def get_client_ip(request):
 def record_custody(case, user, action, reason="", notes="",
                    field_changed="", old_value="", new_value="",
                    ip_address=None):
-    ChainOfCustody.objects.create(
+    entry = ChainOfCustody.objects.create(
         case=case,
         officer=user,
         officer_username=user.username if user else "",
@@ -50,8 +47,17 @@ def record_custody(case, user, action, reason="", notes="",
         ip_address=ip_address,
     )
 
+    # ── Anchor custody entry to Sepolia ───────────────────────────
+    result = blockchain.anchor_custody(entry)
+    if "tx_hash" in result:
+        ChainOfCustody.objects.filter(pk=entry.pk).update(
+            blockchain_tx=result["tx_hash"],
+            blockchain_hash=result["log_hash"],
+            blockchain_block=result["block"],
+            blockchain_url=result["etherscan"],
+        )
 
-# ── Case List + Create ────────────────────────────────────────────
+
 class CaseListCreateView(generics.ListCreateAPIView):
     serializer_class = CaseSerializer
     permission_classes = [IsAuthenticated]
@@ -72,7 +78,16 @@ class CaseListCreateView(generics.ListCreateAPIView):
             branch=user.branch
         )
 
-        # Chain of Custody: CREATED
+        # ── Anchor case creation to Sepolia ───────────────────────
+        result = blockchain.anchor_case_create(case, user)
+        if "tx_hash" in result:
+            Case.objects.filter(pk=case.pk).update(
+                blockchain_tx=result["tx_hash"],
+                blockchain_hash=result["log_hash"],
+                blockchain_block=result["block"],
+                blockchain_url=result["etherscan"],
+            )
+
         record_custody(
             case=case,
             user=user,
@@ -83,7 +98,6 @@ class CaseListCreateView(generics.ListCreateAPIView):
         )
 
 
-# ── Case Detail + Update ──────────────────────────────────────────
 class CaseDetailUpdateView(RetrieveUpdateAPIView):
     queryset = Case.objects.all()
     serializer_class = CaseSerializer
@@ -93,8 +107,6 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
         instance = self.get_object()
         user = request.user
 
-        # ── Cooldown check: only log VIEWED once per 5 minutes
-        # per officer per case to prevent refresh spam ────────────
         cooldown_threshold = timezone.now() - timedelta(minutes=VIEW_COOLDOWN_MINUTES)
         recent_view_exists = ChainOfCustody.objects.filter(
             case=instance,
@@ -120,7 +132,6 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
         if user.role != "CASE":
             raise PermissionDenied("Supervisors cannot update cases.")
 
-        # Reason is mandatory
         reason = self.request.data.get("reason", "").strip()
         if not reason:
             raise ValidationError(
@@ -140,8 +151,8 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
             old_val = old_values[field]
 
             if old_val != new_val:
-                # CaseLog entry
-                CaseLog.objects.create(
+                # Create CaseLog entry
+                log = CaseLog.objects.create(
                     case=updated,
                     field_changed=field,
                     old_value=old_val,
@@ -150,6 +161,16 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
                     crime_number=updated.crime_number,
                     branch=updated.branch,
                 )
+
+                # ── Anchor CaseLog to Sepolia ─────────────────────
+                result = blockchain.anchor_log(log)
+                if "tx_hash" in result:
+                    CaseLog.objects.filter(pk=log.pk).update(
+                        blockchain_tx=result["tx_hash"],
+                        blockchain_hash=result["log_hash"],
+                        blockchain_block=result["block"],
+                        blockchain_url=result["etherscan"],
+                    )
 
                 # Chain of Custody entry
                 if field == "current_stage":
@@ -175,7 +196,6 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
                 )
 
 
-# ── Chain of Custody for a specific case ─────────────────────────
 class ChainOfCustodyView(generics.ListAPIView):
     serializer_class = ChainOfCustodySerializer
     permission_classes = [IsAuthenticated]
@@ -185,7 +205,6 @@ class ChainOfCustodyView(generics.ListAPIView):
         return ChainOfCustody.objects.filter(case_id=case_id)
 
 
-# ── Case Log List ─────────────────────────────────────────────────
 class CaseLogListView(generics.ListAPIView):
     serializer_class = CaseLogSerializer
     permission_classes = [IsAuthenticated]
@@ -199,7 +218,23 @@ class CaseLogListView(generics.ListAPIView):
         )
 
 
-# ── Supervisor Overview ───────────────────────────────────────────
+class CaseLogVerifyView(APIView):
+    """
+    GET /api/case-logs/<id>/verify/
+    Verifies a specific log entry against Sepolia blockchain.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            log = CaseLog.objects.get(pk=pk)
+        except CaseLog.DoesNotExist:
+            return Response({"error": "Log not found"}, status=404)
+
+        result = blockchain.verify_log(log)
+        return Response(result)
+
+
 class SupervisorCaseOverview(APIView):
     permission_classes = [IsAuthenticated]
 

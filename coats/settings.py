@@ -1,25 +1,25 @@
-"""
-Django settings for coats project.
-Secrets are loaded from environment variables (or a .env file via python-decouple).
-"""
 import os
 from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ── Security ──────────────────────────────────────────────────────────────────
-# Set SECRET_KEY in your shell or .env file — never hard-code it.
+# ── Security ──────────────────────────────────────────────────────
 SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY",
-    "change-me-before-production"   # fallback for local dev only
+    "change-me-before-production"
 )
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost"
+).split(",")
 
-# ── Installed apps ─────────────────────────────────────────────────────────────
+# ── Installed apps ─────────────────────────────────────────────────
 INSTALLED_APPS = [
     'corsheaders',
     'django.contrib.admin',
@@ -35,7 +35,7 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = 'accounts.User'
 
-# ── DRF ───────────────────────────────────────────────────────────────────────
+# ── DRF ───────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -45,14 +45,14 @@ REST_FRAMEWORK = {
     ],
 }
 
-# ── JWT ───────────────────────────────────────────────────────────────────────
+# ── JWT ───────────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# ── Middleware ────────────────────────────────────────────────────────────────
+# ── Middleware ─────────────────────────────────────────────────────
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -83,19 +83,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'coats.wsgi.application'
 
-# ── Database ──────────────────────────────────────────────────────────────────
+# ── Database ───────────────────────────────────────────────────────
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'coats_db'),
-        'USER': os.environ.get('DB_USER', 'coats_user'),
+        'ENGINE':   'django.db.backends.postgresql',
+        'NAME':     os.environ.get('DB_NAME',     'coats_db'),
+        'USER':     os.environ.get('DB_USER',     'coats_user'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'strongpassword'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'HOST':     os.environ.get('DB_HOST',     'localhost'),
+        'PORT':     os.environ.get('DB_PORT',     '5432'),
     }
 }
 
-# ── Password validation ───────────────────────────────────────────────────────
+# ── Password validation ────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -103,19 +103,21 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# ── Internationalisation ──────────────────────────────────────────────────────
+# ── Internationalisation ───────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ── Static files ──────────────────────────────────────────────────────────────
+# ── Static files ───────────────────────────────────────────────────
 STATIC_URL = 'static/'
-LOGIN_REDIRECT_URL = '/api/cases/'
+LOGIN_REDIRECT_URL  = '/api/cases/'
 LOGOUT_REDIRECT_URL = '/api-auth/login/'
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
-# Add production origins via the CORS_ALLOWED_ORIGINS env variable (comma-separated).
-_cors_env = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
-CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
+# ── CORS ───────────────────────────────────────────────────────────
+_cors_env = os.environ.get(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173"
+)
+CORS_ALLOWED_ORIGINS  = [o.strip() for o in _cors_env.split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True

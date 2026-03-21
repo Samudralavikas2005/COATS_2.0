@@ -28,6 +28,8 @@ class CaseLogSerializer(serializers.ModelSerializer):
             "id", "case_id", "crime_number",
             "field_changed", "old_value", "new_value",
             "updated_by", "branch", "timestamp",
+            "blockchain_tx", "blockchain_hash",
+            "blockchain_block", "blockchain_url",
         ]
 
 

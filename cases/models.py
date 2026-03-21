@@ -62,6 +62,10 @@ class CaseLog(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     crime_number = models.CharField(max_length=100, blank=True, default="")
     branch = models.CharField(max_length=10, blank=True, default="")
+    blockchain_tx    = models.CharField(max_length=200, blank=True, default="")
+    blockchain_hash  = models.CharField(max_length=100, blank=True, default="")
+    blockchain_block = models.IntegerField(null=True, blank=True)
+    blockchain_url   = models.URLField(blank=True, default="")
 
     class Meta:
         ordering = ["-timestamp"]
@@ -113,6 +117,12 @@ class ChainOfCustody(models.Model):
 
     ip_address    = models.GenericIPAddressField(null=True, blank=True)
     timestamp     = models.DateTimeField(auto_now_add=True)
+    
+    # Blockchain anchor fields
+    blockchain_tx    = models.CharField(max_length=200, blank=True, default="")
+    blockchain_hash  = models.CharField(max_length=100, blank=True, default="")
+    blockchain_block = models.IntegerField(null=True, blank=True)
+    blockchain_url   = models.URLField(blank=True, default="")
 
     class Meta:
         ordering = ["timestamp"]
