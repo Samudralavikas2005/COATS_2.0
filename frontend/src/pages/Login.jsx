@@ -124,12 +124,12 @@ function Login() {
           animation: "cFadeUp .4s ease",
         }}>
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>🚔</div>
+            <div style={{ fontSize: "2.2rem", marginBottom: 10 }}>🪖</div>
             <h1 style={{ fontSize: "1.4rem", fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>
               COATS
             </h1>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.14em", color: t.textMuted }}>
-              Case & Offence Administration Tracking System
+              Cases of Anti-Terrorism Squad
             </div>
           </div>
 
