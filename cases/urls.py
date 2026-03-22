@@ -9,6 +9,7 @@ from .views import (
     CaseProgressCompleteView,
     CaseHandoverView,
     OfficersListView,
+    LegalAssistantView,
     SupervisorCaseOverview,
     CaseReportPDFView,
     CaseReportCSVView,
@@ -43,4 +44,6 @@ urlpatterns = [
     path("dashboard/by-severity/",              DashboardBySeverityView.as_view()),
     path("dashboard/timeline/",                 DashboardTimelineView.as_view()),
     path("dashboard/recent-cases/",             DashboardRecentCasesView.as_view()),
+    # --GROK AI-------------------------------------------------------------
+    path("ai/legal-assistant/", LegalAssistantView.as_view()),
 ]

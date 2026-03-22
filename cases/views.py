@@ -2,6 +2,7 @@ import csv
 import io
 import hashlib
 import threading
+import os
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -11,7 +12,7 @@ from rest_framework.response import Response
 from django.http import HttpResponse
 from django.utils import timezone
 from datetime import timedelta
-
+from groq import Groq
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -56,9 +57,17 @@ def anchor_in_background(anchor_fn, obj, model_class, pk):
     threading.Thread(target=run, daemon=True).start()
 
 
-def record_custody(case, user, action, reason="", notes="",
-                   field_changed="", old_value="", new_value="",
-                   ip_address=None):
+def record_custody(
+    case,
+    user,
+    action,
+    reason="",
+    notes="",
+    field_changed="",
+    old_value="",
+    new_value="",
+    ip_address=None
+):
     entry = ChainOfCustody.objects.create(
         case=case,
         officer=user,
@@ -96,17 +105,14 @@ class CaseListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         if user.role != "CASE":
             raise PermissionDenied("Only Case Officers can create cases.")
-
         case = serializer.save(
             case_holding_officer=user,
             branch=user.branch
         )
-
         anchor_in_background(
             lambda c: blockchain.anchor_case_create(c, user),
             case, Case, case.pk
         )
-
         record_custody(
             case=case,
             user=user,
@@ -126,7 +132,6 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         user = request.user
-
         cooldown_threshold = timezone.now() - timedelta(minutes=VIEW_COOLDOWN_MINUTES)
         recent_view_exists = ChainOfCustody.objects.filter(
             case=instance,
@@ -134,7 +139,6 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
             action="VIEWED",
             timestamp__gte=cooldown_threshold,
         ).exists()
-
         if not recent_view_exists:
             record_custody(
                 case=instance,
@@ -143,7 +147,6 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
                 reason="Case record accessed",
                 ip_address=get_client_ip(request),
             )
-
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -151,25 +154,19 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
         user = self.request.user
         if user.role != "CASE":
             raise PermissionDenied("Supervisors cannot update cases.")
-
         reason = self.request.data.get("reason", "").strip()
         if not reason:
             raise ValidationError(
                 {"reason": "A reason is mandatory when updating a case."}
             )
-
         instance = self.get_object()
         old_values = {f: str(getattr(instance, f) or "") for f in TRACKED_FIELDS}
-
         serializer.save()
-
         updated = self.get_object()
         ip = get_client_ip(self.request)
-
         for field in TRACKED_FIELDS:
             new_val = str(getattr(updated, field) or "")
             old_val = old_values[field]
-
             if old_val != new_val:
                 log = CaseLog.objects.create(
                     case=updated,
@@ -180,22 +177,19 @@ class CaseDetailUpdateView(RetrieveUpdateAPIView):
                     crime_number=updated.crime_number,
                     branch=updated.branch,
                 )
-
                 anchor_in_background(
                     blockchain.anchor_log,
                     log, CaseLog, log.pk
                 )
-
                 if field == "current_stage":
                     action = "STAGE"
-                    notes  = f"Stage changed from {old_val} to {new_val}"
+                    notes = f"Stage changed from {old_val} to {new_val}"
                 elif field == "action_to_be_taken":
                     action = "ACTION"
-                    notes  = "Action to be taken updated"
+                    notes = "Action to be taken updated"
                 else:
                     action = "UPDATED"
-                    notes  = f"{field} was modified"
-
+                    notes = f"{field} was modified"
                 record_custody(
                     case=updated,
                     user=user,
@@ -247,7 +241,7 @@ class CaseLogVerifyView(APIView):
 
 # ── Progress Entries ──────────────────────────────────────────────
 class CaseProgressListCreateView(generics.ListCreateAPIView):
-    serializer_class   = CaseProgressSerializer
+    serializer_class = CaseProgressSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -257,8 +251,7 @@ class CaseProgressListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         if user.role != "CASE":
             raise PermissionDenied("Only Case Officers can add progress entries.")
-
-        case  = Case.objects.get(pk=self.kwargs["pk"])
+        case = Case.objects.get(pk=self.kwargs["pk"])
         entry = serializer.save(case=case, officer=user)
 
         def _anchor():
@@ -267,7 +260,7 @@ class CaseProgressListCreateView(generics.ListCreateAPIView):
                 f"{entry.officer_id}{entry.created_at}"
             )
             log_hash = hashlib.sha256(data.encode()).hexdigest()
-            result   = blockchain._anchor(log_hash, str(case.id), case.crime_number)
+            result = blockchain._anchor(log_hash, str(case.id), case.crime_number)
             if "tx_hash" in result:
                 CaseProgress.objects.filter(pk=entry.pk).update(
                     blockchain_tx=result["tx_hash"],
@@ -275,6 +268,7 @@ class CaseProgressListCreateView(generics.ListCreateAPIView):
                     blockchain_block=result["block"],
                     blockchain_url=result["etherscan"],
                 )
+
         threading.Thread(target=_anchor, daemon=True).start()
 
 
@@ -286,10 +280,8 @@ class CaseProgressCompleteView(APIView):
             entry = CaseProgress.objects.get(pk=pk)
         except CaseProgress.DoesNotExist:
             return Response({"error": "Progress entry not found"}, status=404)
-
         if request.user.role != "CASE":
             raise PermissionDenied("Only Case Officers can complete progress entries.")
-
         entry.is_completed = True
         entry.completed_at = timezone.now()
         entry.save()
@@ -307,14 +299,13 @@ class CaseHandoverView(APIView):
     def post(self, request, pk):
         if request.user.role != "SUPERVISOR":
             raise PermissionDenied("Only Supervisors can hand over cases.")
-
         try:
             case = Case.objects.get(pk=pk)
         except Case.DoesNotExist:
             return Response({"error": "Case not found"}, status=404)
 
         to_officer_id = request.data.get("to_officer_id")
-        reason        = request.data.get("reason", "").strip()
+        reason = request.data.get("reason", "").strip()
 
         if not to_officer_id:
             return Response({"error": "to_officer_id is required"}, status=400)
@@ -327,7 +318,6 @@ class CaseHandoverView(APIView):
             return Response({"error": "Officer not found"}, status=404)
 
         from_officer = case.case_holding_officer
-
         handover = CaseHandover.objects.create(
             case=case,
             from_officer=from_officer,
@@ -360,7 +350,7 @@ class CaseHandoverView(APIView):
                 f"{handover.to_officer_username}{handover.reason}{handover.timestamp}"
             )
             log_hash = hashlib.sha256(data.encode()).hexdigest()
-            result   = blockchain._anchor(log_hash, str(case.id), case.crime_number)
+            result = blockchain._anchor(log_hash, str(case.id), case.crime_number)
             if "tx_hash" in result:
                 CaseHandover.objects.filter(pk=handover.pk).update(
                     blockchain_tx=result["tx_hash"],
@@ -368,6 +358,7 @@ class CaseHandoverView(APIView):
                     blockchain_block=result["block"],
                     blockchain_url=result["etherscan"],
                 )
+
         threading.Thread(target=_anchor, daemon=True).start()
 
         return Response(CaseHandoverSerializer(handover).data)
@@ -380,7 +371,6 @@ class OfficersListView(APIView):
     def get(self, request):
         if request.user.role != "SUPERVISOR":
             raise PermissionDenied("Only Supervisors can view officers list.")
-
         officers = User.objects.filter(role="CASE").values(
             "id", "username", "branch", "first_name", "last_name"
         )
@@ -406,6 +396,59 @@ class SupervisorCaseOverview(APIView):
         })
 
 
+# ── Legal Assistant ───────────────────────────────────────────────
+class LegalAssistantView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user_message = request.data.get("message", "").strip()
+        history = request.data.get("messages", [])
+
+        if not user_message:
+            return Response({"error": "Message is required"}, status=400)
+
+        try:
+            client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": """You are a legal assistant for COATS — the Case and Offence Administration Tracking System used by Tamil Nadu Police. You help Case Holding Officers and Supervisors with:
+- Indian Penal Code (IPC) sections and their meanings
+- Criminal Procedure Code (CrPC) procedures
+- Court stages — UI, PT, HC, SC and what each requires
+- Documentation needed at each stage
+- Bailable vs non-bailable offences
+- Arrest procedures and warrant requirements
+- Evidence handling guidelines
+- Case filing procedures
+Always give clear, accurate, practical answers relevant to Indian law enforcement. Keep answers concise and actionable. If you don't know something, say so clearly."""
+                },
+                *history,
+                {"role": "user", "content": user_message},
+            ]
+
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                max_tokens=1024,
+                temperature=0.7,
+            )
+
+            reply = response.choices[0].message.content
+
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": reply})
+
+            return Response({
+                "reply": reply,
+                "messages": history,
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
 # ── Case Report — PDF ─────────────────────────────────────────────
 class CaseReportPDFView(APIView):
     permission_classes = [IsAuthenticated]
@@ -416,29 +459,50 @@ class CaseReportPDFView(APIView):
         except Case.DoesNotExist:
             return Response({"error": "Case not found"}, status=404)
 
-        custody   = ChainOfCustody.objects.filter(case=case).order_by("timestamp")
-        progress  = CaseProgress.objects.filter(case=case).order_by("date_of_progress")
+        custody = ChainOfCustody.objects.filter(case=case).order_by("timestamp")
+        progress = CaseProgress.objects.filter(case=case).order_by("date_of_progress")
         handovers = CaseHandover.objects.filter(case=case).order_by("timestamp")
-        logs      = CaseLog.objects.filter(case=case).order_by("timestamp")
+        logs = CaseLog.objects.filter(case=case).order_by("timestamp")
 
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4,
-                                rightMargin=1.5*cm, leftMargin=1.5*cm,
-                                topMargin=1.5*cm, bottomMargin=1.5*cm)
-        styles   = getSampleStyleSheet()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=1.5*cm,
+            leftMargin=1.5*cm,
+            topMargin=1.5*cm,
+            bottomMargin=1.5*cm
+        )
+
+        styles = getSampleStyleSheet()
         elements = []
 
-        title_style = ParagraphStyle('title', fontSize=16, alignment=TA_CENTER,
-                                     fontName='Helvetica-Bold', spaceAfter=4)
-        sub_style   = ParagraphStyle('sub', fontSize=9, alignment=TA_CENTER,
-                                     textColor=colors.grey, spaceAfter=12)
-        section_style = ParagraphStyle('section', fontSize=11, fontName='Helvetica-Bold',
-                                       spaceBefore=12, spaceAfter=4,
-                                       textColor=colors.HexColor('#1a1a2e'))
+        title_style = ParagraphStyle(
+            'title',
+            fontSize=16,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold',
+            spaceAfter=4
+        )
+        sub_style = ParagraphStyle(
+            'sub',
+            fontSize=9,
+            alignment=TA_CENTER,
+            textColor=colors.grey,
+            spaceAfter=12
+        )
+        section_style = ParagraphStyle(
+            'section',
+            fontSize=11,
+            fontName='Helvetica-Bold',
+            spaceBefore=12,
+            spaceAfter=4,
+            textColor=colors.HexColor('#1a1a2e')
+        )
 
         elements.append(Paragraph("COATS 2.0 — Full Case Report", title_style))
         elements.append(Paragraph(
-            f"Generated: {timezone.now().strftime('%d %b %Y %H:%M')}  |  "
+            f"Generated: {timezone.now().strftime('%d %b %Y %H:%M')} | "
             f"By: {request.user.username}",
             sub_style
         ))
@@ -485,18 +549,18 @@ class CaseReportPDFView(APIView):
         # 1. Case Details
         section("1. Case Details")
         info_table([
-            ["Crime Number",          str(case.crime_number)],
-            ["PS Limit",              str(case.ps_limit or "—")],
-            ["Current Stage",         str(case.current_stage)],
-            ["Date of Occurrence",    str(case.date_of_occurrence)],
-            ["Date of Registration",  str(case.date_of_registration)],
-            ["Branch",                str(case.branch or "—")],
-            ["Section of Law",        str(case.section_of_law or "—")],
-            ["Complainant",           str(case.complainant_name or "—")],
-            ["Accused Details",       str(case.accused_details or "—")],
-            ["Gist of Case",          str(case.gist_of_case or "—")],
-            ["Action to be Taken",    str(case.action_to_be_taken or "—")],
-            ["Assigned Officer",      str(case.case_holding_officer) if case.case_holding_officer else "—"],
+            ["Crime Number", str(case.crime_number)],
+            ["PS Limit", str(case.ps_limit or "—")],
+            ["Current Stage", str(case.current_stage)],
+            ["Date of Occurrence", str(case.date_of_occurrence)],
+            ["Date of Registration", str(case.date_of_registration)],
+            ["Branch", str(case.branch or "—")],
+            ["Section of Law", str(case.section_of_law or "—")],
+            ["Complainant", str(case.complainant_name or "—")],
+            ["Accused Details", str(case.accused_details or "—")],
+            ["Gist of Case", str(case.gist_of_case or "—")],
+            ["Action to be Taken", str(case.action_to_be_taken or "—")],
+            ["Assigned Officer", str(case.case_holding_officer) if case.case_holding_officer else "—"],
         ])
 
         # 2. Chain of Custody
@@ -573,6 +637,7 @@ class CaseReportPDFView(APIView):
 
         doc.build(elements)
         buffer.seek(0)
+
         filename = f"COATS_Case_{case.crime_number}.pdf"
         response = HttpResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -595,18 +660,18 @@ class CaseReportCSVView(APIView):
 
         # Case Details
         writer.writerow(["=== CASE DETAILS ==="])
-        writer.writerow(["Crime Number",         case.crime_number])
-        writer.writerow(["PS Limit",             case.ps_limit or ""])
-        writer.writerow(["Current Stage",        case.current_stage])
-        writer.writerow(["Date of Occurrence",   case.date_of_occurrence])
+        writer.writerow(["Crime Number", case.crime_number])
+        writer.writerow(["PS Limit", case.ps_limit or ""])
+        writer.writerow(["Current Stage", case.current_stage])
+        writer.writerow(["Date of Occurrence", case.date_of_occurrence])
         writer.writerow(["Date of Registration", case.date_of_registration])
-        writer.writerow(["Branch",               case.branch or ""])
-        writer.writerow(["Section of Law",       case.section_of_law or ""])
-        writer.writerow(["Complainant",          case.complainant_name or ""])
-        writer.writerow(["Accused Details",      case.accused_details or ""])
-        writer.writerow(["Gist of Case",         case.gist_of_case or ""])
-        writer.writerow(["Action to be Taken",   case.action_to_be_taken or ""])
-        writer.writerow(["Assigned Officer",     str(case.case_holding_officer) if case.case_holding_officer else ""])
+        writer.writerow(["Branch", case.branch or ""])
+        writer.writerow(["Section of Law", case.section_of_law or ""])
+        writer.writerow(["Complainant", case.complainant_name or ""])
+        writer.writerow(["Accused Details", case.accused_details or ""])
+        writer.writerow(["Gist of Case", case.gist_of_case or ""])
+        writer.writerow(["Action to be Taken", case.action_to_be_taken or ""])
+        writer.writerow(["Assigned Officer", str(case.case_holding_officer) if case.case_holding_officer else ""])
         writer.writerow([])
 
         # Chain of Custody

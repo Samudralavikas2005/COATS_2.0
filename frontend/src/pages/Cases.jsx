@@ -20,10 +20,10 @@ const THEMES = {
 
 const STAGE = {
   UI: { label: "Under Investigation", color: "#f5c842" },
-  PT: { label: "Pending Trial",       color: "#a78bfa" },
-  HC: { label: "Pending before HC",   color: "#fb923c" },
-  SC: { label: "Pending before SC",   color: "#f87171" },
-  CC: { label: "Closed",              color: "#34d399" },
+  PT: { label: "Pending Trial", color: "#a78bfa" },
+  HC: { label: "Pending before HC", color: "#fb923c" },
+  SC: { label: "Pending before SC", color: "#f87171" },
+  CC: { label: "Closed", color: "#34d399" },
 };
 
 function StageBadge({ code }) {
@@ -115,20 +115,21 @@ function Cases() {
     } catch { return "dark"; }
   };
 
-  const [theme, setTheme]             = useState(getTheme);
-  const [cases, setCases]             = useState([]);
-  const [error, setError]             = useState("");
-  const [loading, setLoading]         = useState(true);
-  const [search, setSearch]           = useState("");
+  const [theme, setTheme] = useState(getTheme);
+  const [cases, setCases] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [filterStage, setFilterStage] = useState("ALL");
-  const [lastSync, setLastSync]       = useState(null);
+  const [lastSync, setLastSync] = useState(null);
 
-  const role     = localStorage.getItem("role");
+  const role = localStorage.getItem("role");
   const username = localStorage.getItem("username");
-  const branch   = localStorage.getItem("branch");
+  const branch = localStorage.getItem("branch");
   const navigate = useNavigate();
-  const t        = THEMES[theme];
-  const isDark   = theme === "dark";
+
+  const t = THEMES[theme];
+  const isDark = theme === "dark";
 
   const toggleTheme = () => {
     setTheme(prev => {
@@ -170,7 +171,6 @@ function Cases() {
       .catch(err => { setError(err.message); setLoading(false); });
   }, [navigate]);
 
-  // Auto-refresh every 10 seconds
   useEffect(() => {
     fetchCases();
     const id = setInterval(fetchCases, 10000);
@@ -178,8 +178,8 @@ function Cases() {
   }, [fetchCases]);
 
   const filtered = cases.filter(c => {
-    const matchStage  = filterStage === "ALL" || c.current_stage === filterStage;
-    const q           = search.toLowerCase();
+    const matchStage = filterStage === "ALL" || c.current_stage === filterStage;
+    const q = search.toLowerCase();
     const matchSearch = !q
       || c.crime_number?.toLowerCase().includes(q)
       || c.section_of_law?.toLowerCase().includes(q)
@@ -194,7 +194,7 @@ function Cases() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes cPulse  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
+        @keyframes cPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
         @keyframes cFadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 3px; }
@@ -204,7 +204,7 @@ function Cases() {
 
       <div style={{ fontFamily: "'Sora',sans-serif", background: t.bgBase, color: t.textPrimary, minHeight: "100vh", padding: "2rem", transition: "background .25s, color .2s" }}>
 
-        {/* ── HEADER ── */}
+        {/* HEADER */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
           <div>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>
@@ -237,10 +237,16 @@ function Cases() {
             {role === "SUPERVISOR" && (
               <Btn onClick={() => navigate("/dashboard")} t={t} accent={t.purple}>📊 Dashboard</Btn>
             )}
+
+            {/* Legal AI button added here */}
+            <Btn onClick={() => navigate("/legal-assistant")} t={t} accent={t.purple}>⚖️ Legal AI</Btn>
+
             <Btn onClick={() => navigate("/logs")} t={t} accent={t.accent}>📋 Logs</Btn>
+
             {role === "CASE" && (
               <Btn onClick={() => navigate("/create-case")} t={t} accent={t.green}>+ New Case</Btn>
             )}
+
             <Btn onClick={handleLogout} t={t} accent={t.red} outline>Logout</Btn>
           </div>
         </div>
@@ -299,14 +305,14 @@ function Cases() {
           </div>
         </div>
 
-        {/* ── ERROR ── */}
+        {/* ERROR */}
         {error && (
           <div style={{ background: `${t.red}15`, border: `1px solid ${t.red}44`, borderRadius: 10, padding: "10px 16px", marginBottom: "1rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.red }}>
             ⚠️ {error}
           </div>
         )}
 
-        {/* ── CASES TABLE ── */}
+        {/* CASES TABLE */}
         <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, boxShadow: t.shadow, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 1.5fr 1.2fr 0.5fr", padding: "0.6rem 1.2rem", borderBottom: `1px solid ${t.border}` }}>
             {["Crime No.", "IPC Section", "Stage", "Date Filed", ""].map((h, i) => (

@@ -8,6 +8,7 @@ import COATSDashboard from "./pages/COATSDashboard";
 import CaseLogs from "./pages/CaseLogs";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { startSessionTimeout, stopSessionTimeout } from "./utils/sessionTimeout";
+import LegalAssistant from "./pages/LegalAssistant";
 
 function App() {
   useEffect(() => {
@@ -77,6 +78,8 @@ function App() {
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
+        
+        <Route path="/legal-assistant" element={<ProtectedRoute> <LegalAssistant /> </ProtectedRoute>} />
 
       </Routes>
     </BrowserRouter>
