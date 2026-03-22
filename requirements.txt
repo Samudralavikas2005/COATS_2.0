@@ -46,6 +46,7 @@ pycryptodome==3.23.0
 pydantic==2.12.5
 pydantic_core==2.41.5
 PyJWT==2.11.0
+PyPDF2==3.0.1
 python-dotenv==1.2.2
 pyunormalize==17.0.0
 PyYAML==6.0.3

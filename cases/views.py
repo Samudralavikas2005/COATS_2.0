@@ -3,7 +3,9 @@ import io
 import hashlib
 import threading
 import os
-from rest_framework import generics
+import PyPDF2
+import base64
+from rest_framework import generics, parsers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import RetrieveUpdateAPIView
@@ -396,7 +398,7 @@ class SupervisorCaseOverview(APIView):
         })
 
 
-# ── Legal Assistant ───────────────────────────────────────────────
+# ── Legal Assistant (Text Chat) ───────────────────────────────────
 class LegalAssistantView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -443,6 +445,92 @@ Always give clear, accurate, practical answers relevant to Indian law enforcemen
             return Response({
                 "reply": reply,
                 "messages": history,
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+# ── Legal Assistant File Upload + Analysis ────────────────────────
+class LegalAssistantFileView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def post(self, request):
+        file = request.FILES.get("file")
+        message = request.data.get("message", "Please summarize this document and suggest next steps.").strip()
+        history = []
+
+        if not file:
+            return Response({"error": "No file uploaded"}, status=400)
+
+        try:
+            # ── Extract text from file ────────────────────────────
+            file_text = ""
+            file_name = file.name.lower()
+
+            if file_name.endswith(".pdf"):
+                # Extract text from PDF
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
+                for page in pdf_reader.pages:
+                    file_text += page.extract_text() or ""
+            elif file_name.endswith((".txt",)):
+                file_text = file.read().decode("utf-8", errors="ignore")
+            else:
+                return Response(
+                    {"error": "Unsupported file type. Please upload PDF or TXT files."},
+                    status=400
+                )
+
+            if not file_text.strip():
+                return Response(
+                    {"error": "Could not extract text from the file. Make sure it is not a scanned image PDF."},
+                    status=400
+                )
+
+            # Limit text to avoid token overflow (adjust as needed)
+            file_text = file_text[:8000]
+
+            # ── Call Groq ─────────────────────────────────────────
+            client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+
+            prompt = f"""The following is the content of a legal document uploaded by a Tamil Nadu Police officer.
+--- DOCUMENT START ---
+{file_text}
+--- DOCUMENT END ---
+{message}
+
+Please provide:
+1. **Document Summary** — What is this document about?
+2. **Key Points** — Most important facts, dates, names, IPC sections mentioned
+3. **Current Stage** — What stage is this case at?
+4. **Recommended Next Steps** — What should the officer do next?
+5. **Important Deadlines** — Any dates or deadlines mentioned that need attention?"""
+
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a legal assistant for COATS used by Tamil Nadu Police.
+Analyze legal documents and provide clear, actionable summaries and next steps.
+Focus on practical guidance relevant to Indian law enforcement."""
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=2048,
+                temperature=0.3,
+            )
+
+            reply = response.choices[0].message.content
+
+            history.append({"role": "user", "content": f"[Uploaded file: {file.name}] {message}"})
+            history.append({"role": "assistant", "content": reply})
+
+            return Response({
+                "reply": reply,
+                "messages": history,
+                "file_name": file.name,
             })
 
         except Exception as e:
