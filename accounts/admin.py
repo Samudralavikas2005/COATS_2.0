@@ -10,6 +10,12 @@ class CustomUserAdmin(UserAdmin):
     fieldsets     = UserAdmin.fieldsets + (
         ("COATS Info", {"fields": ("role", "branch")}),
     )
+    
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ("COATS Info", {
+            "fields": ("role", "branch")
+        }),
+    )
 
 
 @admin.register(LoginAuditLog)

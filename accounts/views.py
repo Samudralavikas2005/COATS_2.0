@@ -1,8 +1,12 @@
 import threading
 import datetime
+import requests
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password, check_password
 
 from .serializers import CustomTokenObtainPairSerializer
 from .models import LoginAuditLog
@@ -55,6 +59,76 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
+        # ── Setup MFA Intercept (First Login) ─────────────────────
+        user = serializer.user
+        if not user.security_question_1:
+            return Response({
+                "setup_mfa_required": True,
+                "username": user.username
+            }, status=status.HTTP_200_OK)
+
+        # ── Geolocation MFA ───────────────────────────────────────
+        mfa_answer_1 = request.data.get("mfa_answer_1")
+        mfa_answer_2 = request.data.get("mfa_answer_2")
+
+        if mfa_answer_1 and mfa_answer_2:
+            ans1_correct = user.security_answer_1 and check_password(mfa_answer_1.strip().lower(), user.security_answer_1)
+            ans2_correct = user.security_answer_2 and check_password(mfa_answer_2.strip().lower(), user.security_answer_2)
+            
+            if not (ans1_correct and ans2_correct):
+                # Record failed login due to MFA
+                log = LoginAuditLog.objects.create(
+                    username=username,
+                    ip_address=ip,
+                    success=False,
+                    user_agent=user_agent,
+                )
+                def _anchor_mfa_failed():
+                    result = blockchain.anchor_login(username, ip, timestamp, False)
+                    if "tx_hash" in result:
+                        LoginAuditLog.objects.filter(pk=log.pk).update(
+                            blockchain_tx=result["tx_hash"], blockchain_hash=result["log_hash"],
+                            blockchain_block=result["block"], blockchain_url=result["etherscan"]
+                        )
+                threading.Thread(target=_anchor_mfa_failed, daemon=True).start()
+                return Response(
+                    {"detail": "Incorrect security answers. Access denied."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        else:
+            BRANCH_CITY_MAP = {
+                'HQ': 'Chennai',
+                'CNI': 'Chennai',
+                'MDU': 'Madurai',
+                'CMB': 'Coimbatore'
+            }
+            expected_city = BRANCH_CITY_MAP.get(user.branch)
+            if expected_city:
+                try:
+                    geo_url = 'http://ip-api.com/json/' if ip in ['127.0.0.1', 'localhost', '::1'] else f'http://ip-api.com/json/{ip}'
+                    geo_res = requests.get(geo_url, timeout=5).json()
+                    user_city = geo_res.get('city')
+                    
+                    if user_city and user_city != expected_city:
+                        return Response({
+                            "mfa_required": True,
+                            "questions": [
+                                user.security_question_1 or "What is your mother's maiden name?",
+                                user.security_question_2 or "What was the name of your first pet?"
+                            ],
+                            "username": user.username
+                        }, status=status.HTTP_200_OK)
+                except Exception:
+                    # Fallback to MFA on error
+                    return Response({
+                        "mfa_required": True,
+                        "questions": [
+                            user.security_question_1 or "What is your mother's maiden name?",
+                            user.security_question_2 or "What was the name of your first pet?"
+                        ],
+                        "username": user.username
+                    }, status=status.HTTP_200_OK)
+
         # ── Record successful login ───────────────────────────────
         log = LoginAuditLog.objects.create(
             username=username,
@@ -79,3 +153,31 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             serializer.validated_data,
             status=status.HTTP_200_OK
         )
+
+
+class SetupMFAView(APIView):
+    permission_classes = []
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        q1 = request.data.get("question_1")
+        a1 = request.data.get("answer_1")
+        q2 = request.data.get("question_2")
+        a2 = request.data.get("answer_2")
+
+        if not all([username, password, q1, a1, q2, a2]):
+            return Response({"detail": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(username=username, password=password)
+        if not user:
+            return Response({"detail": "Invalid credentials. Cannot setup MFA."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        user.security_question_1 = q1.strip()
+        user.security_answer_1 = make_password(a1.strip().lower())
+        user.security_question_2 = q2.strip()
+        user.security_answer_2 = make_password(a2.strip().lower())
+        user.save()
+
+        return Response({"detail": "MFA setup complete. Please login again."}, status=status.HTTP_200_OK)

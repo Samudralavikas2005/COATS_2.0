@@ -20,6 +20,12 @@ class User(AbstractUser):
         null=True,
         blank=True
     )
+    
+    # ── Security questions for Geolocation MFA ──
+    security_question_1 = models.CharField(max_length=255, blank=True, null=True)
+    security_answer_1   = models.CharField(max_length=255, blank=True, null=True)
+    security_question_2 = models.CharField(max_length=255, blank=True, null=True)
+    security_answer_2   = models.CharField(max_length=255, blank=True, null=True)
 
 
 class LoginAuditLog(models.Model):
