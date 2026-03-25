@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 const THEMES = {
   dark: {
@@ -37,6 +38,7 @@ function Login() {
   const [q2, setQ2]                   = useState("");
   const [answer1, setAnswer1]         = useState("");
   const [answer2, setAnswer2]         = useState("");
+  const [googleToken, setGoogleToken] = useState("");
   const navigate = useNavigate();
 
   const t      = THEMES[theme];
@@ -57,7 +59,7 @@ function Login() {
 
     if (setupMfaRequired) {
       try {
-        const payload = { username, password, question_1: q1, answer_1: answer1, question_2: q2, answer_2: answer2 };
+        const payload = { username, password, question_1: q1, answer_1: answer1, question_2: q2, answer_2: answer2, google_token: googleToken };
         const res = await fetch("http://localhost:8000/api/setup-mfa/", {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
@@ -77,7 +79,7 @@ function Login() {
     }
 
     try {
-      const payloadBody = { username, password };
+      const payloadBody = { username, password, google_token: googleToken };
       if (mfaRequired) {
         payloadBody.mfa_answer_1 = answer1;
         payloadBody.mfa_answer_2 = answer2;
@@ -129,8 +131,10 @@ function Login() {
     }
   };
 
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "70529819777-6k2725k572110c73om9k1t5i4t4cbnv1.apps.googleusercontent.com";
+
   return (
-    <>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -226,6 +230,17 @@ function Login() {
                       {showPass ? "🙈" : "👁"}
                     </button>
                   </div>
+                </div>
+
+                {/* Google Sign In Core Hook */}
+                <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "center" }}>
+                  <GoogleLogin
+                    onSuccess={res => setGoogleToken(res.credential)}
+                    onError={() => setError("Google Sign-in failed")}
+                    theme={isDark ? "filled_black" : "outline"}
+                    text="continue_with"
+                    shape="pill"
+                  />
                 </div>
               </>
             )}
@@ -327,7 +342,7 @@ function Login() {
           </div>
         </div>
       </div>
-    </>
+    </GoogleOAuthProvider>
   );
 }
 
