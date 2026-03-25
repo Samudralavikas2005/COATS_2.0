@@ -7,6 +7,8 @@ A secure, full-stack case management system built for law enforcement agencies t
 ## 🚀 Features
 
 - 🔐 JWT Authentication with role-based access control
+- 🛡️ Mandatory Google OAuth Integration
+- 🌍 Geolocation-based Multi-Factor Authentication (Security Questions)
 - 👮 Two roles — Supervisor and Case Holding Officer
 - 🗂 Case registration, tracking and lifecycle management
 - ⚖️ Court stage workflow (UI → PT → HC → SC → CC)
@@ -32,7 +34,7 @@ A secure, full-stack case management system built for law enforcement agencies t
 | Backend | Django 6.0.2, Django REST Framework |
 | Frontend | React 19, Vite, React Router v7 |
 | Database | PostgreSQL |
-| Authentication | JWT (SimpleJWT) |
+| Authentication | JWT (SimpleJWT), Google OAuth 2.0 |
 | Blockchain | Ethereum Sepolia Testnet via Alchemy |
 | Smart Contract | Solidity 0.8.0 |
 | Web3 | web3.py 7.x |
@@ -212,6 +214,15 @@ A threading lock ensures transactions are serialized to prevent nonce collision 
 |---|---|
 | SUPERVISOR | View all cases, dashboard, logs, handover cases, download reports |
 | CASE | Create cases, update own cases, add progress entries, download reports |
+
+---
+
+## 🛡️ Authentication & MFA Flow
+
+COATS 2.0 enforces strict, multi-layered identity verification protocols:
+1. **Google OAuth Verification:** Every login requires a valid Google Workspace credential via `@react-oauth/google`.
+2. **Geolocation Anomaly Detection:** Logins originating outside the user's assigned branch jurisdiction automatically trigger an additional security challenge.
+3. **Cryptographic Security Questions:** The MFA fallback challenges the user with pre-defined security questions which are cryptographically hashed using PBKDF2/Argon2 algorithms.
 
 ---
 
