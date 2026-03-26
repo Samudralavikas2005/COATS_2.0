@@ -425,7 +425,7 @@ function CaseLogs() {
       return;
     }
 
-    fetch("http://127.0.0.1:8000/api/case-logs/", {
+    fetch("http://127.0.0.1:8002/api/case-logs/", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {

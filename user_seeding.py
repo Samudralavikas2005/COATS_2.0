@@ -56,4 +56,48 @@ for u in USERS:
     print(f"Created: {u['username']} [{u['role']} / {u['branch']}]")
     created += 1
 
-print(f"\nDone — {created} created, {skipped} skipped.")
+print(f"\nDone — {created} users created, {skipped} skipped.")
+
+import random
+from datetime import timedelta, date
+from cases.models import Case
+
+print("\nSeeding 20 random cases...")
+case_officers = list(User.objects.filter(role="CASE"))
+if not case_officers:
+    print("No case officers found! Cannot assign cases.")
+else:
+    STAGES = ["UI", "PT", "HC", "SC", "CC"]
+    IPCS = ["IPC 302", "IPC 307", "IPC 379", "IPC 420", "IPC 120B", "IPC 376A", "IPC 294"]
+    PS_LIMITS = ["Central", "North", "South", "East", "West", "Suburban"]
+    
+    cases_created = 0
+    start_date = date.today() - timedelta(days=365)
+    
+    for i in range(1, 21):
+        officer = random.choice(case_officers)
+        occ_date = start_date + timedelta(days=random.randint(0, 300))
+        reg_date = occ_date + timedelta(days=random.randint(1, 10))
+        
+        crime_no = f"CR{random.randint(1000, 9999)}/{reg_date.year}"
+        
+        if Case.objects.filter(crime_number=crime_no).exists():
+            continue
+            
+        Case.objects.create(
+            crime_number=crime_no,
+            ps_limit=f"{random.choice(PS_LIMITS)} PS",
+            section_of_law=random.choice(IPCS),
+            date_of_occurrence=occ_date,
+            date_of_registration=reg_date,
+            complainant_name=f"Complainant {i}",
+            accused_details=f"Accused Name {i}, Age {random.randint(20, 50)}",
+            gist_of_case=f"This is a randomly generated gist for case {crime_no}.",
+            current_stage=random.choice(STAGES),
+            action_to_be_taken="Complete investigation and file charge sheet." if random.choice([True, False]) else "Awaiting forensics.",
+            case_holding_officer=officer,
+            branch=officer.branch
+        )
+        cases_created += 1
+
+    print(f"Successfully created {cases_created} random cases!")

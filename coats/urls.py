@@ -1,3 +1,4 @@
+
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
@@ -6,7 +7,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from accounts.views import CustomTokenObtainPairView
+from accounts.views import CustomTokenObtainPairView, SetupMFAView
 
 
 def admin_logout_redirect(request):
@@ -22,6 +23,7 @@ urlpatterns = [
     # ── API ───────────────────────────────────────────────────────
     path("api/",               include("cases.urls")),
     path("api/token/",         CustomTokenObtainPairView.as_view()),
+    path("api/setup-mfa/",     SetupMFAView.as_view()),
     path("api/token/refresh/", TokenRefreshView.as_view()),
 
     # ── Swagger API Docs ──────────────────────────────────────────

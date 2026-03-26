@@ -1,11 +1,14 @@
 from rest_framework import serializers
-from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover
+from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover, CaseEvidence, Criminal
 
 
 class CaseSerializer(serializers.ModelSerializer):
     case_holding_officer_username = serializers.CharField(
         source="case_holding_officer.username",
         read_only=True
+    )
+    criminals = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Criminal.objects.all(), required=False
     )
 
     class Meta:
@@ -92,3 +95,37 @@ class CaseHandoverSerializer(serializers.ModelSerializer):
             "blockchain_tx", "blockchain_hash",
             "blockchain_block", "blockchain_url",
         ]
+
+
+class CaseEvidenceSerializer(serializers.ModelSerializer):
+    uploaded_by_username = serializers.CharField(source="uploaded_by.username", read_only=True)
+    photo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CaseEvidence
+        fields = "__all__"
+        read_only_fields = ["uploaded_by", "uploaded_at"]
+
+    def get_photo_url(self, obj):
+        if obj.photo:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
+
+
+class CriminalSerializer(serializers.ModelSerializer):
+    photo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Criminal
+        fields = "__all__"
+
+    def get_photo_url(self, obj):
+        if obj.photo:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None

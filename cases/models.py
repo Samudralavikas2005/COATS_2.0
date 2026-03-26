@@ -33,6 +33,7 @@ class Case(models.Model):
         related_name="cases"
     )
     branch = models.CharField(max_length=10)
+    criminals = models.ManyToManyField("Criminal", related_name="cases", blank=True)
 
     # ── Blockchain anchor fields ───────────────────────────────────
     blockchain_tx    = models.CharField(max_length=200, blank=True, default="")
@@ -209,3 +210,41 @@ class CaseHandover(models.Model):
 
     def __str__(self):
         return f"{self.crime_number} | {self.from_officer_username} → {self.to_officer_username}"
+
+
+class CaseEvidence(models.Model):
+    """
+    Stores photo copies and relative details taken at the crime scene.
+    """
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="evidences")
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    photo = models.ImageField(upload_to="evidence_photos/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True,
+        on_delete=models.SET_NULL, related_name="uploaded_evidences"
+    )
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"{self.case.crime_number} - {self.title}"
+
+
+class Criminal(models.Model):
+    """
+    Structured record for a criminal/offender.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    age = models.IntegerField(null=True, blank=True)
+    gender = models.CharField(max_length=20, blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    photo = models.ImageField(upload_to="criminal_photos/", null=True, blank=True)
+    past_crimes_summary = models.TextField(blank=True, default="No prior records found.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

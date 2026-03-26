@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 const THEMES = {
   dark: {
@@ -24,21 +25,29 @@ function Login() {
     } catch { return "dark"; }
   };
 
-  const [theme, setTheme]       = useState(getTheme);
+  const [theme, setTheme] = useState(getTheme);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [setupMfaRequired, setSetupMfaRequired] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [q1, setQ1] = useState("");
+  const [q2, setQ2] = useState("");
+  const [answer1, setAnswer1] = useState("");
+  const [answer2, setAnswer2] = useState("");
+  const [googleToken, setGoogleToken] = useState("");
   const navigate = useNavigate();
 
-  const t      = THEMES[theme];
+  const t = THEMES[theme];
   const isDark = theme === "dark";
 
   const toggleTheme = () => {
     setTheme(prev => {
       const next = prev === "dark" ? "light" : "dark";
-      try { localStorage.setItem("coats-theme", next); } catch {}
+      try { localStorage.setItem("coats-theme", next); } catch { }
       return next;
     });
   };
@@ -48,27 +57,65 @@ function Login() {
     setLoading(true);
     setError("");
 
+    if (setupMfaRequired) {
+      try {
+        const payload = { username, password, question_1: q1, answer_1: answer1, question_2: q2, answer_2: answer2, google_token: googleToken };
+        const res = await fetch("http://localhost:8002/api/setup-mfa/", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "MFA Setup failed");
+
+        setSetupMfaRequired(false);
+        setQ1(""); setQ2(""); setAnswer1(""); setAnswer2("");
+        setPassword("");
+        window.alert("Security questions saved securely! Please login again.");
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
-      const res = await fetch("http://localhost:8000/api/token/", {
+      const payloadBody = { username, password, google_token: googleToken };
+      if (mfaRequired) {
+        payloadBody.mfa_answer_1 = answer1;
+        payloadBody.mfa_answer_2 = answer2;
+      }
+      const res = await fetch("http://localhost:8002/api/token/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(payloadBody),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error("Invalid credentials");
+      if (!res.ok) throw new Error(data.detail || "Invalid credentials");
+
+      if (data.setup_mfa_required) {
+        setSetupMfaRequired(true);
+        setLoading(false);
+        return;
+      }
+
+      if (data.mfa_required) {
+        setMfaRequired(true);
+        setQuestions(data.questions);
+        setLoading(false);
+        return;
+      }
 
       localStorage.clear();
-      localStorage.setItem("access",  data.access);
+      localStorage.setItem("access", data.access);
       localStorage.setItem("refresh", data.refresh);
 
       const payload = JSON.parse(atob(data.access.split(".")[1]));
 
-      // Always store role as UPPERCASE for consistent comparison everywhere
       const role = (payload.role || "").toUpperCase();
 
-      localStorage.setItem("role",     role);
-      localStorage.setItem("branch",   payload.branch);
+      localStorage.setItem("role", role);
+      localStorage.setItem("branch", payload.branch);
       localStorage.setItem("username", payload.username);
       localStorage.setItem("coats-theme", theme);
 
@@ -83,8 +130,10 @@ function Login() {
     }
   };
 
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
   return (
-    <>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -103,7 +152,6 @@ function Login() {
         position: "relative",
       }}>
 
-        {/* ── THEME TOGGLE ── */}
         <div style={{ position: "absolute", top: 24, right: 24, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
             {isDark ? "Dark" : "Light"}
@@ -115,7 +163,6 @@ function Login() {
           </div>
         </div>
 
-        {/* ── LOGIN CARD ── */}
         <div style={{
           background: t.bgCard, border: `1px solid ${t.border}`,
           borderRadius: 20, padding: "2.5rem 2.25rem",
@@ -136,49 +183,119 @@ function Login() {
           <div style={{ height: 1, background: t.border, marginBottom: "1.75rem" }} />
 
           <form onSubmit={handleLogin}>
-            {/* Username */}
-            <div style={{ marginBottom: "1rem" }}>
-              <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6 }}>
-                Username
-              </label>
-              <input
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                required
-                autoComplete="username"
-                style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
-                onFocus={e => e.target.style.borderColor = t.accent}
-                onBlur={e => e.target.style.borderColor = t.border}
-              />
-            </div>
+            {!mfaRequired && !setupMfaRequired && (
+              <>
+                {/* Username */}
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6 }}>
+                    Username
+                  </label>
+                  <input
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder="Enter your username"
+                    required
+                    autoComplete="username"
+                    style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
+                    onFocus={e => e.target.style.borderColor = t.accent}
+                    onBlur={e => e.target.style.borderColor = t.border}
+                  />
+                </div>
 
-            {/* Password */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6 }}>
-                Password
-              </label>
-              <div style={{ position: "relative" }}>
-                <input
-                  type={showPass ? "text" : "password"}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  autoComplete="current-password"
-                  style={{ width: "100%", padding: "0.7rem 2.8rem 0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
-                  onFocus={e => e.target.style.borderColor = t.accent}
-                  onBlur={e => e.target.style.borderColor = t.border}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(p => !p)}
-                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", color: t.textMuted, padding: 4 }}
-                >
-                  {showPass ? "🙈" : "👁"}
-                </button>
+                {/* Password */}
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6 }}>
+                    Password
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showPass ? "text" : "password"}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      autoComplete="current-password"
+                      style={{ width: "100%", padding: "0.7rem 2.8rem 0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
+                      onFocus={e => e.target.style.borderColor = t.accent}
+                      onBlur={e => e.target.style.borderColor = t.border}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(p => !p)}
+                      style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", color: t.textMuted, padding: 4 }}
+                    >
+                      {showPass ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
+                  <div style={{ flex: 1, height: 1, background: t.border }} />
+                  <span style={{ fontSize: "0.65rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>AND</span>
+                  <div style={{ flex: 1, height: 1, background: t.border }} />
+                </div>
+
+                <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  {googleToken && (
+                    <div style={{ fontSize: "0.72rem", color: t.green, marginBottom: "0.5rem", textAlign: "center" }}>
+                      ✓ Google verified
+                    </div>
+                  )}
+
+                  <GoogleLogin
+                    onSuccess={res => setGoogleToken(res.credential)}
+                    onError={() => setError("Google Sign-in failed")}
+                    theme={isDark ? "filled_black" : "outline"}
+                    text="continue_with"
+                    shape="pill"
+                  />
+                </div>
+              </>
+            )}
+
+            {mfaRequired && (
+              <div style={{ animation: "cFadeUp .3s ease" }}>
+                <div style={{ background: `${t.accent}10`, border: `1px solid ${t.accent}33`, borderRadius: 12, padding: "12px 14px", marginBottom: "1.5rem" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: t.accent, marginBottom: 4 }}>📍 Unusual Location Detected</div>
+                  <div style={{ fontSize: "0.68rem", color: t.textSecond, lineHeight: 1.4 }}>Please verify your identity by answering your security questions.</div>
+                </div>
+                {questions.map((q, i) => (
+                  <div key={i} style={{ marginBottom: "1.25rem" }}>
+                    <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", color: t.textMuted, display: "block", marginBottom: 6 }}>
+                      Question {i + 1}: {q}
+                    </label>
+                    <input
+                      value={i === 0 ? answer1 : answer2}
+                      onChange={e => i === 0 ? setAnswer1(e.target.value) : setAnswer2(e.target.value)}
+                      placeholder="Your answer"
+                      required
+                      style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none" }}
+                    />
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
+
+            {setupMfaRequired && (
+              <div style={{ animation: "cFadeUp .3s ease" }}>
+                <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+                  <div style={{ fontSize: "0.85rem", fontWeight: 700, color: t.accent, marginBottom: 4 }}>🛡️ Security Setup</div>
+                  <div style={{ fontSize: "0.68rem", color: t.textSecond }}>Welcome, {username}. Please configure your recovery questions for future access.</div>
+                </div>
+
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <label style={{ fontSize: "0.63rem", textTransform: "uppercase", color: t.textMuted, display: "block", marginBottom: 6 }}>Question 1</label>
+                  <input value={q1} onChange={e => setQ1(e.target.value)} placeholder="e.g. Your first pet's name" required style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, marginBottom: 8, fontSize: "0.85rem" }} />
+                  <input value={answer1} onChange={e => setAnswer1(e.target.value)} placeholder="Answer 1" required style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontSize: "0.85rem" }} />
+                </div>
+
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <label style={{ fontSize: "0.63rem", textTransform: "uppercase", color: t.textMuted, display: "block", marginBottom: 6 }}>Question 2</label>
+                  <input value={q2} onChange={e => setQ2(e.target.value)} placeholder="e.g. Your birthplace" required style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, marginBottom: 8, fontSize: "0.85rem" }} />
+                  <input value={answer2} onChange={e => setAnswer2(e.target.value)} placeholder="Answer 2" required style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontSize: "0.85rem" }} />
+                </div>
+              </div>
+            )}
 
             {error && (
               <div style={{ background: `${t.red}15`, border: `1px solid ${t.red}44`, borderRadius: 8, padding: "8px 12px", marginBottom: "1rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", color: t.red, animation: "cShake .4s ease" }}>
@@ -187,6 +304,32 @@ function Login() {
             )}
 
             <LoginButton loading={loading} accent={t.accent} />
+
+            {(mfaRequired || setupMfaRequired) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMfaRequired(false);
+                  setSetupMfaRequired(false);
+                  setAnswer1("");
+                  setAnswer2("");
+                  setQ1("");
+                  setQ2("");
+                  setError("");
+                }}
+                style={{
+                  marginTop: "0.75rem", width: "100%", padding: "0.8rem",
+                  background: "transparent", border: `1px solid ${t.border}`,
+                  borderRadius: 10, color: t.textPrimary,
+                  fontFamily: "'JetBrains Mono',monospace", fontSize: "0.82rem",
+                  cursor: "pointer", transition: "background .2s"
+                }}
+                onMouseEnter={e => e.target.style.background = t.bgCardHover}
+                onMouseLeave={e => e.target.style.background = "transparent"}
+              >
+                ← Back
+              </button>
+            )}
           </form>
 
           <div style={{ marginTop: "1.5rem", textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", color: t.textMuted }}>
@@ -194,7 +337,7 @@ function Login() {
           </div>
         </div>
       </div>
-    </>
+    </GoogleOAuthProvider>
   );
 }
 

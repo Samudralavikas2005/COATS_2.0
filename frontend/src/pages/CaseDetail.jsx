@@ -45,7 +45,7 @@ function formatDate(ts) {
 
 function downloadReport(caseId, format) {
   const token = localStorage.getItem("access");
-  fetch(`http://localhost:8000/api/cases/${caseId}/report/${format}/`, {
+  fetch(`http://localhost:8002/api/cases/${caseId}/report/${format}/`, {
     headers: { Authorization: `Bearer ${token}` },
   })
     .then(res => {
@@ -180,7 +180,7 @@ function ProgressTab({ caseId, role, t }) {
 
   const fetchProgress = useCallback(() => {
     const token = localStorage.getItem("access");
-    fetch(`http://localhost:8000/api/cases/${caseId}/progress/`, {
+    fetch(`http://localhost:8002/api/cases/${caseId}/progress/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -197,7 +197,7 @@ function ProgressTab({ caseId, role, t }) {
     setSaving(true); setError("");
     const token = localStorage.getItem("access");
     try {
-      const res = await fetch(`http://localhost:8000/api/cases/${caseId}/progress/`, {
+      const res = await fetch(`http://localhost:8002/api/cases/${caseId}/progress/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
@@ -212,7 +212,7 @@ function ProgressTab({ caseId, role, t }) {
 
   const handleComplete = async (pk) => {
     const token = localStorage.getItem("access");
-    await fetch(`http://localhost:8000/api/progress/${pk}/complete/`, {
+    await fetch(`http://localhost:8002/api/progress/${pk}/complete/`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -347,11 +347,11 @@ function HandoverTab({ caseId, caseData, t }) {
 
   useEffect(() => {
     const token = localStorage.getItem("access");
-    fetch("http://localhost:8000/api/officers/", {
+    fetch("http://localhost:8002/api/officers/", {
       headers: { Authorization: `Bearer ${token}` },
     }).then(r => r.json()).then(setOfficers).catch(() => {});
 
-    fetch(`http://localhost:8000/api/cases/${caseId}/handover/`, {
+    fetch(`http://localhost:8002/api/cases/${caseId}/handover/`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(r => r.json()).then(setHandovers).catch(() => {});
   }, [caseId]);
@@ -362,7 +362,7 @@ function HandoverTab({ caseId, caseData, t }) {
     setSaving(true); setError(""); setSuccess("");
     const token = localStorage.getItem("access");
     try {
-      const res = await fetch(`http://localhost:8000/api/cases/${caseId}/handover/`, {
+      const res = await fetch(`http://localhost:8002/api/cases/${caseId}/handover/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ to_officer_id: toOfficerId, reason }),
@@ -450,6 +450,219 @@ function HandoverTab({ caseId, caseData, t }) {
   );
 }
 
+// ── Evidence Tab ──────────────────────────────────────────────────
+function EvidenceTab({ caseId, t, canEdit }) {
+  const [evidence, setEvidence] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "" });
+  const [file, setFile] = useState(null);
+
+  const fetchEvidence = useCallback(() => {
+    const token = localStorage.getItem("access");
+    fetch(`http://localhost:8002/api/cases/${caseId}/evidence/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => { setEvidence(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [caseId]);
+
+  useEffect(() => { fetchEvidence(); }, [fetchEvidence]);
+
+  const handleUpload = async () => {
+    if (!file || !form.title) return alert("Title and Photo are required");
+    setUploading(true);
+    const token = localStorage.getItem("access");
+    const formData = new FormData();
+    formData.append("title", form.title);
+    formData.append("description", form.description);
+    formData.append("photo", file);
+
+    try {
+      const res = await fetch(`http://localhost:8002/api/cases/${caseId}/evidence/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      setForm({ title: "", description: "" });
+      setFile(null);
+      setShowAdd(false);
+      fetchEvidence();
+    } catch (err) { alert(err.message); }
+    finally { setUploading(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this evidence?")) return;
+    const token = localStorage.getItem("access");
+    await fetch(`http://localhost:8002/api/evidence/${id}/`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    fetchEvidence();
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted }}>
+          📸 Crime Scene Evidence — {evidence.length} items
+        </div>
+        {canEdit && (
+          <Btn onClick={() => setShowAdd(!showAdd)} t={t} accent={t.accent} small>
+            {showAdd ? "✕ Cancel" : "+ Add Evidence"}
+          </Btn>
+        )}
+      </div>
+
+      {showAdd && (
+        <div style={{ background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1.5rem" }}>
+          <div style={{ marginBottom: "0.75rem" }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Title *</div>
+            <input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} style={{ width: "100%", padding: "0.6rem 0.9rem", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 9, color: t.textPrimary }} />
+          </div>
+          <div style={{ marginBottom: "0.75rem" }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Description</div>
+            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} style={{ width: "100%", padding: "0.6rem 0.9rem", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 9, color: t.textPrimary }} />
+          </div>
+          <div style={{ marginBottom: "1rem" }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Photo *</div>
+            <input type="file" accept="image/*" onChange={e => setFile(e.target.files[0])} style={{ color: t.textSecond, fontSize: "0.75rem" }} />
+          </div>
+          <Btn onClick={handleUpload} t={t} accent={t.green} disabled={uploading}>{uploading ? "Uploading..." : "✓ Upload Evidence"}</Btn>
+        </div>
+      )}
+
+      {loading ? <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted }}>Loading...</div> : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "1rem" }}>
+          {evidence.map(item => (
+            <div key={item.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ height: 160, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                <img src={item.photo_url} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+              <div style={{ padding: "0.75rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.85rem", color: t.textPrimary }}>{item.title}</div>
+                  {canEdit && <button onClick={() => handleDelete(item.id)} style={{ background: "none", border: "none", color: t.red, cursor: "pointer", fontSize: "0.8rem" }}>🗑</button>}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: t.textMuted, marginBottom: 8, lineHeight: 1.4 }}>{item.description}</div>
+                <div style={{ fontSize: "0.62rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
+                   By {item.uploaded_by_username} · {formatDate(item.uploaded_at)}
+                </div>
+              </div>
+            </div>
+          ))}
+          {evidence.length === 0 && (
+             <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "3rem", color: t.textMuted, background: `${t.bgCard}44`, borderRadius: 12, border: `1px dashed ${t.border}` }}>
+               No evidence photos uploaded yet.
+             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Criminal Record Tab ──────────────────────────────────────────
+function CriminalRecordTab({ criminals, t }) {
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!criminals || criminals.length === 0) { setLoading(false); return; }
+    const token = localStorage.getItem("access");
+    // For simplicity, we fetch each criminal or use a list filter if implemented
+    // Here we'll just show placeholders if not synced, but let's assume we can fetch linked ones
+    Promise.all(criminals.map(id =>
+        fetch(`http://localhost:8002/api/criminals/${id}/`, {
+            headers: { Authorization: `Bearer ${token}` }
+        }).then(res => res.json())
+    )).then(data => { setList(data); setLoading(false); }).catch(() => setLoading(false));
+  }, [criminals]);
+
+  return (
+    <div>
+      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.5rem" }}>
+        👤 Linked Criminal Records — {list.length} profiles
+      </div>
+      {loading ? <div style={{ textAlign: "center", padding: "2rem" }}>Loading...</div> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {list.map(c => (
+            <div key={c.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.25rem", display: "flex", gap: "1.5rem" }}>
+              <div style={{ width: 100, height: 100, borderRadius: 12, overflow: "hidden", background: t.bgBase, flexShrink: 0 }}>
+                {c.photo_url ? <img src={c.photo_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: "2rem" }}>👤</div>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{c.name}</h3>
+                  <span style={{ fontSize: "0.75rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>{c.gender} · {c.age} yrs</span>
+                </div>
+                <div style={{ fontSize: "0.8rem", color: t.textSecond, marginBottom: 10 }}>📍 {c.address}</div>
+                <div style={{ background: `${t.red}0a`, border: `1px solid ${t.red}22`, borderRadius: 8, padding: "8px 12px" }}>
+                   <div style={{ fontSize: "0.6rem", textTransform: "uppercase", color: t.red, fontWeight: 700, marginBottom: 4 }}>Criminal History / Past Crimes</div>
+                   <div style={{ fontSize: "0.82rem", color: t.textPrimary, lineHeight: 1.5 }}>{c.past_crimes_summary}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+          {list.length === 0 && (
+             <div style={{ textAlign: "center", padding: "3rem", color: t.textMuted }}>
+               No structured criminal records linked to this case.
+             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Similar Cases Tab ─────────────────────────────────────────────
+function SimilarCasesTab({ caseId, t }) {
+  const [cases, setCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("access");
+    fetch(`http://localhost:8002/api/cases/${caseId}/similar/`, {
+        headers: { Authorization: `Bearer ${token}` }
+    }).then(res => res.json()).then(data => { setCases(data); setLoading(false); }).catch(() => setLoading(false));
+  }, [caseId]);
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted }}>
+          🔍 Similar Investigative Patterns — {cases.length} found
+        </div>
+      </div>
+      {loading ? <div style={{ textAlign: "center", padding: "2rem" }}>Analyzing case patterns...</div> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {cases.map(c => (
+            <div key={c.id} onClick={() => { navigate(`/cases/${c.id}`); window.location.reload(); }}
+                 style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1rem", cursor: "pointer", transition: "transform 0.2s", ":hover": { transform: "translateX(4px)" } }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: "0.9rem", color: t.accent }}>{c.crime_number}</span>
+                <span style={{ fontSize: "0.7rem", color: t.textMuted }}>{c.date_of_registration}</span>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: t.textPrimary, marginBottom: 6 }}><b>Section:</b> {c.section_of_law}</div>
+              <div style={{ fontSize: "0.78rem", color: t.textSecond, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.gist_of_case}</div>
+            </div>
+          ))}
+          {cases.length === 0 && (
+             <div style={{ textAlign: "center", padding: "3rem", color: t.textMuted }}>
+               No similar cases identified based on current parameters.
+             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────
 function CaseDetail() {
   const getTheme = () => {
@@ -483,7 +696,7 @@ function CaseDetail() {
 
   useEffect(() => {
     const token = localStorage.getItem("access");
-    fetch(`http://localhost:8000/api/cases/${id}/`, {
+    fetch(`http://localhost:8002/api/cases/${id}/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => { if (!res.ok) throw new Error("Failed to load case"); return res.json(); })
@@ -493,7 +706,7 @@ function CaseDetail() {
       })
       .catch(err => setError(err.message));
 
-    fetch(`http://localhost:8000/api/cases/${id}/custody/`, {
+    fetch(`http://localhost:8002/api/cases/${id}/custody/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -509,7 +722,7 @@ function CaseDetail() {
     const token = localStorage.getItem("access");
     setSaving(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/cases/${id}/`, {
+      const res = await fetch(`http://localhost:8002/api/cases/${id}/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
@@ -534,10 +747,12 @@ function CaseDetail() {
     cursor: editable ? "text" : "not-allowed",
     transition: "border-color .2s", outline: "none",
   });
-
   const TABS = [
     { key: "details",  label: "📋 Case Details" },
+    { key: "evidence", label: "📸 Evidence" },
     { key: "progress", label: "📊 Progress" },
+    { key: "criminals", label: "👤 Criminals" },
+    { key: "similar",  label: "🔍 Similar Cases" },
     { key: "custody",  label: `🔗 Custody (${custody.length})` },
     ...(role === "SUPERVISOR" ? [{ key: "handover", label: "👮 Handover" }] : []),
   ];
@@ -683,6 +898,27 @@ function CaseDetail() {
             {activeTab === "progress" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
                 <ProgressTab caseId={id} role={role} t={t} />
+              </div>
+            )}
+
+            {/* ── EVIDENCE TAB ── */}
+            {activeTab === "evidence" && (
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
+                <EvidenceTab caseId={id} t={t} canEdit={canEdit} />
+              </div>
+            )}
+
+            {/* ── CRIMINALS TAB ── */}
+            {activeTab === "criminals" && (
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
+                <CriminalRecordTab criminals={caseData.criminals} t={t} />
+              </div>
+            )}
+
+            {/* ── SIMILAR CASES TAB ── */}
+            {activeTab === "similar" && (
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
+                <SimilarCasesTab caseId={id} t={t} />
               </div>
             )}
 

@@ -14,12 +14,18 @@ from .views import (
     SupervisorCaseOverview,
     CaseReportPDFView,
     CaseReportCSVView,
+    CriminalListCreateView,
+    CriminalDetailView,
+    CaseEvidenceListCreateView,
+    CaseEvidenceDeleteView,
+    SimilarCasesView,
 )
 from .dashboard_views import (
     DashboardKPIView,
     DashboardBySeverityView,
     DashboardTimelineView,
     DashboardRecentCasesView,
+    DashboardRemindersView,
 )
 
 urlpatterns = [
@@ -31,6 +37,13 @@ urlpatterns = [
     path("cases/<uuid:pk>/handover/",           CaseHandoverView.as_view()),
     path("cases/<uuid:pk>/report/pdf/",         CaseReportPDFView.as_view()),
     path("cases/<uuid:pk>/report/csv/",         CaseReportCSVView.as_view()),
+    path("cases/<uuid:pk>/evidence/",           CaseEvidenceListCreateView.as_view()),
+    path("cases/<uuid:pk>/similar/",            SimilarCasesView.as_view()),
+    # ── Criminals ─────────────────────────────────────────────────
+    path("criminals/",                          CriminalListCreateView.as_view()),
+    path("criminals/<uuid:pk>/",                CriminalDetailView.as_view()),
+    # ── Evidence ──────────────────────────────────────────────────
+    path("evidence/<int:pk>/",                  CaseEvidenceDeleteView.as_view()),
     # ── Progress ──────────────────────────────────────────────────
     path("progress/<int:pk>/complete/",         CaseProgressCompleteView.as_view()),
     # ── Logs ──────────────────────────────────────────────────────
@@ -45,6 +58,7 @@ urlpatterns = [
     path("dashboard/by-severity/",              DashboardBySeverityView.as_view()),
     path("dashboard/timeline/",                 DashboardTimelineView.as_view()),
     path("dashboard/recent-cases/",             DashboardRecentCasesView.as_view()),
+    path("dashboard/reminders/",                DashboardRemindersView.as_view()),
     # --GROK AI-------------------------------------------------------------
     path("ai/legal-assistant/", LegalAssistantView.as_view()),
     path("ai/legal-assistant/file/", LegalAssistantFileView.as_view()),

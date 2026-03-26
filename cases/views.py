@@ -5,6 +5,7 @@ import threading
 import os
 import PyPDF2
 import base64
+from django.db.models import Q
 from rest_framework import generics, parsers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -22,10 +23,11 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
 from reportlab.lib.enums import TA_CENTER
 
-from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover
+from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover, CaseEvidence, Criminal
 from .serializers import (
     CaseSerializer, CaseLogSerializer, ChainOfCustodySerializer,
     CaseProgressSerializer, CaseHandoverSerializer,
+    CaseEvidenceSerializer, CriminalSerializer
 )
 from .permissions import IsCaseOwner
 from blockchain.service import blockchain
@@ -816,3 +818,96 @@ class CaseReportCSVView(APIView):
             ])
 
         return response
+
+
+# ── Criminal Records ──────────────────────────────────────────────
+class CriminalListCreateView(generics.ListCreateAPIView):
+    queryset = Criminal.objects.all()
+    serializer_class = CriminalSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class CriminalDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Criminal.objects.all()
+    serializer_class = CriminalSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# ── Case Evidence ─────────────────────────────────────────────────
+class CaseEvidenceListCreateView(generics.ListCreateAPIView):
+    serializer_class = CaseEvidenceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return CaseEvidence.objects.filter(case_id=self.kwargs["pk"])
+
+    def perform_create(self, serializer):
+        case = generics.get_object_or_404(Case, pk=self.kwargs["pk"])
+        serializer.save(case=case, uploaded_by=self.request.user)
+
+        # Audit Log
+        CaseLog.objects.create(
+            case=case,
+            updated_by=self.request.user,
+            field_changed="Evidence",
+            old_value="",
+            new_value=f"Evidence Added: {serializer.validated_data.get('title')}",
+            action="ACTION"
+        )
+
+
+class CaseEvidenceDeleteView(generics.DestroyAPIView):
+    queryset = CaseEvidence.objects.all()
+    serializer_class = CaseEvidenceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_destroy(self, instance):
+        case = instance.case
+        title = instance.title
+        instance.delete()
+
+        # Audit Log
+        CaseLog.objects.create(
+            case=case,
+            updated_by=self.request.user,
+            field_changed="Evidence",
+            old_value=f"Evidence Removed: {title}",
+            new_value="",
+            action="ACTION"
+        )
+
+
+# ── Similar Cases ──────────────────────────────────────────────────
+class SimilarCasesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        current_case = generics.get_object_or_404(Case, pk=pk)
+
+        # Find cases with:
+        # 1. Same IPC section (Law)
+        # 2. Same Criminals (Structured)
+        # 3. Matches in Accused details (Legacy text)
+        # 4. Similar Gist of Case (Keyword matching)
+
+        q_objects = Q(section_of_law__icontains=current_case.section_of_law)
+
+        # Match by structured criminals
+        linked_criminals = current_case.criminals.all()
+        if linked_criminals:
+            q_objects |= Q(criminals__in=linked_criminals)
+
+        # Match by legacy accused details string
+        if current_case.accused_details:
+             accused_name = current_case.accused_details.split(',')[0].strip()
+             if accused_name:
+                 q_objects |= Q(accused_details__icontains=accused_name)
+
+        similar_cases = Case.objects.filter(q_objects).exclude(pk=pk).distinct()[:10]
+
+        # For demo purposes, if no matches, find cases in the same branch
+        if not similar_cases.exists():
+            similar_cases = Case.objects.filter(branch=current_case.branch).exclude(pk=pk)[:5]
+
+        serializer = CaseSerializer(similar_cases, many=True)
+        return Response(serializer.data)

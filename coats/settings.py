@@ -86,16 +86,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'coats.wsgi.application'
 
 # ── Database ───────────────────────────────────────────────────────
-DATABASES = {
-    'default': {
-        'ENGINE':   'django.db.backends.postgresql',
-        'NAME':     os.environ.get('DB_NAME',     'coats_db'),
-        'USER':     os.environ.get('DB_USER',     'coats_user'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'strongpassword'),
-        'HOST':     os.environ.get('DB_HOST',     'localhost'),
-        'PORT':     os.environ.get('DB_PORT',     '5432'),
+# By default, use local SQLite so it works out-of-the-box without Docker/PostgreSQL.
+# You can switch to postgres by setting USE_POSTGRES=True in your .env file
+if os.environ.get('USE_POSTGRES', 'False') == 'True':
+    DATABASES = {
+        'default': {
+            'ENGINE':   'django.db.backends.postgresql',
+            'NAME':     os.environ.get('DB_NAME',     'coats_db'),
+            'USER':     os.environ.get('DB_USER',     'coats_user'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'strongpassword'),
+            'HOST':     os.environ.get('DB_HOST',     'localhost'),
+            'PORT':     os.environ.get('DB_PORT',     '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ── Password validation ────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
@@ -136,3 +146,6 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Case & Offence Administration Tracking System',
     'VERSION':     '2.0.0',
 }
+
+# ── Default Auto Field ─────────────────────────────────────────────
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -148,7 +148,7 @@ function Cases() {
     const token = localStorage.getItem("access");
     if (!token) { navigate("/login", { replace: true }); return; }
 
-    fetch("http://127.0.0.1:8000/api/cases/", {
+    fetch("http://127.0.0.1:8002/api/cases/", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {

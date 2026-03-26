@@ -6,7 +6,7 @@ import {
   LineChart, Line,
 } from "recharts";
 
-const BASE = "http://127.0.0.1:8000/api";
+const BASE = "http://127.0.0.1:8002/api";
 
 async function apiFetch(path) {
   const token = localStorage.getItem("access");

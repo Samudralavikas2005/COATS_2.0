@@ -196,3 +196,38 @@ class DashboardRecentCasesView(APIView):
             }
             for c in recent
         ])
+
+# ── 5. Reminders endpoint ──────────────────────────────────────
+class DashboardRemindersView(APIView):
+    """
+    GET /api/dashboard/reminders/
+    Fetches all pending CaseProgress entries with a reminder set.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        from .models import CaseProgress
+
+        if user.role == "SUPERVISOR":
+            qs = CaseProgress.objects.filter(is_completed=False, reminder_date__isnull=False)
+        else:
+            qs = CaseProgress.objects.filter(
+                case__case_holding_officer=user,
+                is_completed=False,
+                reminder_date__isnull=False
+            )
+
+        qs = qs.order_by("reminder_date")
+
+        return Response([
+            {
+                "id": str(p.id),
+                "case_id": str(p.case.id),
+                "case_number": p.case.crime_number,
+                "details_of_progress": p.details_of_progress,
+                "reminder_date": p.reminder_date.strftime("%Y-%m-%d"),
+                "is_completed": p.is_completed
+            }
+            for p in qs
+        ])
