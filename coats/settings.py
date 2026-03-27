@@ -19,6 +19,12 @@ ALLOWED_HOSTS = [h.strip() for h in _hosts.split(",") if h.strip()]
 _csrf_env = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(",") if o.strip()]
 
+# ── CORS ──────────────────────────────────────────────────────────
+_cors_env = os.environ.get("CORS_ALLOWED_ORIGINS", "")
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
+if not CORS_ALLOWED_ORIGINS:
+    CORS_ALLOW_ALL_ORIGINS = True
+
 # ... (INSTALLED_APPS stays same) ...
 INSTALLED_APPS = [
     'corsheaders',
