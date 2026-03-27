@@ -37,6 +37,7 @@ class BlockchainService:
             self.contract_address,
         ])
 
+        missing = [v for v in ["ALCHEMY_RPC_URL", "WALLET_PRIVATE_KEY", "WALLET_ADDRESS", "CONTRACT_ADDRESS"] if not os.environ.get(v)]
         if self.enabled:
             try:
                 self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
@@ -49,11 +50,11 @@ class BlockchainService:
                 )
                 print("Blockchain service connected to Sepolia (LIVE)")
             except Exception as e:
-                print(f"Blockchain service failed to init: {e}")
+                print(f"Blockchain service failed to connect: {e}")
                 self.enabled    = False
                 self.simulation = True
         else:
-            print("Blockchain service: Credentials missing. ACTIVE IN SIMULATION MODE")
+            print(f"Blockchain service: Missing {', '.join(missing)}. ACTIVE IN SIMULATION MODE")
             self.simulation = True
             self.enabled    = True # Enable logic path but use simulation
 
