@@ -20,8 +20,8 @@ def create_admin():
             username=username,
             password=password,
             email=email,
-            role='SUPERVISOR',  # Giving the superuser a role known by your app
-            branch='HEADQUARTERS' # Setting a default branch
+            role='SUPERVISOR',
+            branch='HQ'  # Using correct code shorthand
         )
         print("Superuser created successfully!")
     else:
