@@ -79,9 +79,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
         # ── Step 2: Setup MFA Intercept (First Login) ─────────────────────
         # If user hasn't set up questions yet, force them to do so.
-        # Note: We now allow either google_email or security questions to be missing for the setup trigger, 
-        # but the setup view will still enforce both for maximum security.
-        if not user.security_question_1 or not user.google_email:
+        if not user.security_question_1:
             return Response({
                 "setup_mfa_required": True,
                 "username": user.username
@@ -184,17 +182,19 @@ class SetupMFAView(APIView):
         q2 = request.data.get("question_2")
         a2 = request.data.get("answer_2")
         google_token = request.data.get("google_token")
+        if not all([username, password, q1, a1, q2, a2]):
+            return Response({"detail": "Username, Password, and Security Questions are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not all([username, password, q1, a1, q2, a2, google_token]):
-            return Response({"detail": "All fields including Google Token are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            idinfo = id_token.verify_oauth2_token(google_token, google_requests.Request(), audience="934642464309-shokqbicjqngv3eo0a927fu9vd7qcuu6.apps.googleusercontent.com")
-            google_email = idinfo.get('email')
-            if not google_email:
-                raise ValueError("No email in token")
-        except Exception as e:
-            return Response({"detail": f"Invalid Google token: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        if google_token:
+            try:
+                idinfo = id_token.verify_oauth2_token(google_token, google_requests.Request(), audience="934642464309-shokqbicjqngv3eo0a927fu9vd7qcuu6.apps.googleusercontent.com")
+                google_email = idinfo.get('email')
+                if not google_email:
+                    raise ValueError("No email in token")
+            except Exception as e:
+                return Response({"detail": f"Invalid Google token: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            google_email = None
 
         user = authenticate(username=username, password=password)
         if not user:
@@ -204,7 +204,8 @@ class SetupMFAView(APIView):
         user.security_answer_1 = make_password(a1.strip().lower())
         user.security_question_2 = q2.strip()
         user.security_answer_2 = make_password(a2.strip().lower())
-        user.google_email = google_email
+        if google_email:
+            user.google_email = google_email
         user.save()
 
         return Response({"detail": "MFA setup complete. Please login again."}, status=status.HTTP_200_OK)

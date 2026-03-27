@@ -69,9 +69,12 @@ function Login() {
           question_1: q1, 
           answer_1: answer1, 
           question_2: q2, 
-          answer_2: answer2, 
-          google_token: activeGoogleToken 
+          answer_2: answer2
         };
+        // Only include Google token if it was obtained
+        if (activeGoogleToken) {
+          payload.google_token = activeGoogleToken;
+        }
         const res = await fetch(`${API_BASE}/api/setup-mfa/`, {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
@@ -275,15 +278,6 @@ function Login() {
                   </div>
                 </div>
 
-                {/* Google Sign In Core Hook */}
-                <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => setError("Google Sign-in failed")}
-                    theme={isDark ? "filled_black" : "outline"}
-                    text="continue_with"
-                    shape="pill"
-                  />
                   {googleToken && (
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ fontSize: "0.7rem", color: t.green, fontFamily: "'JetBrains Mono',monospace" }}>
@@ -298,7 +292,6 @@ function Login() {
                       </button>
                     </div>
                   )}
-                </div>
               </>
             )}
 
@@ -322,6 +315,20 @@ function Login() {
                   </label>
                   <input value={q2} onChange={e => setQ2(e.target.value)} required placeholder="e.g. First pet's name?" style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
                   <input value={answer2} onChange={e => setAnswer2(e.target.value)} required placeholder="Answer" style={{ width: "100%", padding: "0.7rem 1rem", marginTop: "8px", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
+                </div>
+
+                {/* Google Link Option (Optional) during Setup */}
+                <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "12px", border: `1px dashed ${t.border}`, borderRadius: "12px" }}>
+                   <div style={{ fontSize: "0.65rem", color: t.textMuted, textAlign: "center", marginBottom: "4px" }}>
+                      Link your Google account for easier login later (Optional)
+                   </div>
+                   <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setError("Google Sign-in failed")}
+                    theme={isDark ? "filled_black" : "outline"}
+                    text="continue_with"
+                    shape="pill"
+                  />
                 </div>
               </>
             )}
@@ -394,10 +401,24 @@ function Login() {
             )}
           </form>
 
-          <div style={{ marginTop: "1.5rem", textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", color: t.textMuted }}>
+          <div style={{ marginTop: "1rem", textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", color: t.textMuted }}>
             Authorized personnel only · COATS v2.0
           </div>
         </div>
+
+        {/* Re-add Google login for base screen if not in setup/mfa modes */}
+        {!mfaRequired && !setupMfaRequired && (
+          <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+             <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError("Google Sign-in failed")}
+                theme={isDark ? "filled_black" : "outline"}
+                type="standard"
+                shape="pill"
+                size="large"
+              />
+          </div>
+        )}
       </div>
     </GoogleOAuthProvider>
   );
