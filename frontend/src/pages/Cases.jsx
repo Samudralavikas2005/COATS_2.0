@@ -149,7 +149,7 @@ function Cases() {
     const token = localStorage.getItem("access");
     if (!token) { navigate("/login", { replace: true }); return; }
 
-    fetch("${API_BASE}/api/cases/", {
+    fetch(`${API_BASE}/api/cases/", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {

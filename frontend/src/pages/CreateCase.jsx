@@ -73,7 +73,7 @@ function CreateCase() {
     if (!token) { setError("Not logged in"); setSubmitting(false); return; }
 
     try {
-      const res = await fetch("${API_BASE}/api/cases/", {
+      const res = await fetch(`${API_BASE}/api/cases/", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...form, current_stage: "UI" }),

@@ -28,7 +28,7 @@ function SupervisorDashboard() {
       return;
     }
 
-    fetch("${API_BASE}/api/supervisor/overview/", {
+    fetch(`${API_BASE}/api/supervisor/overview/", {
       headers: {
         Authorization: `Bearer ${token}`,
       },

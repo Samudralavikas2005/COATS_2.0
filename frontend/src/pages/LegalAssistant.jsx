@@ -76,7 +76,7 @@ function LegalAssistant() {
 
     const token = localStorage.getItem("access");
     try {
-      const res = await fetch("${API_BASE}/api/ai/legal-assistant/", {
+      const res = await fetch(`${API_BASE}/api/ai/legal-assistant/", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ message: msg, messages: history }),
@@ -110,7 +110,7 @@ function LegalAssistant() {
     formData.append("message", customMessage || "Please summarize this document and suggest next steps.");
 
     try {
-      const res = await fetch("${API_BASE}/api/ai/legal-assistant/file/", {
+      const res = await fetch(`${API_BASE}/api/ai/legal-assistant/file/", {
         method:  "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body:    formData,
