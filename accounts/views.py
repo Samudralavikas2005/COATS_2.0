@@ -28,78 +28,67 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         ip         = get_client_ip(request)
         username   = request.data.get("username", "")
+        password   = request.data.get("password", "")
+        google_token = request.data.get("google_token")
         timestamp  = str(datetime.datetime.utcnow())
         user_agent = request.META.get("HTTP_USER_AGENT", "")
 
-        serializer = self.get_serializer(data=request.data)
+        user = None
+        auth_method = "CREDENTIALS"
 
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception:
-            # ── Record failed login ───────────────────────────────
-            log = LoginAuditLog.objects.create(
-                username=username,
-                ip_address=ip,
-                success=False,
-                user_agent=user_agent,
-            )
+        # ── Step 1: Identification (Choice of Method) ───────────────
+        
+        # 🟢 Way A: Google OAuth Only
+        if google_token and not password:
+            auth_method = "GOOGLE"
+            try:
+                idinfo = id_token.verify_oauth2_token(
+                    google_token, 
+                    google_requests.Request(), 
+                    audience="934642464309-shokqbicjqngv3eo0a927fu9vd7qcuu6.apps.googleusercontent.com"
+                )
+                email = idinfo.get('email')
+                from .models import User
+                user = User.objects.filter(google_email=email).first()
+                if not user:
+                    return Response({"detail": "No account associated with this Google email."}, status=status.HTTP_404_NOT_FOUND)
+                username = user.username # For logging
+            except Exception as e:
+                return Response({"detail": f"Google Authentication failed: {str(e)}"}, status=status.HTTP_401_UNAUTHORIZED)
 
-            # ── Anchor in background ──────────────────────────────
-            def _anchor_failed():
-                result = blockchain.anchor_login(username, ip, timestamp, False)
-                if "tx_hash" in result:
-                    LoginAuditLog.objects.filter(pk=log.pk).update(
-                        blockchain_tx=result["tx_hash"],
-                        blockchain_hash=result["log_hash"],
-                        blockchain_block=result["block"],
-                        blockchain_url=result["etherscan"],
-                    )
-            threading.Thread(target=_anchor_failed, daemon=True).start()
+        # 🔵 Way B: Credentials Only
+        elif username and password:
+            user = authenticate(username=username, password=password)
+            if not user:
+                # Record failed login
+                log = LoginAuditLog.objects.create(
+                    username=username, ip_address=ip, success=False, user_agent=user_agent
+                )
+                def _anchor_failed():
+                    result = blockchain.anchor_login(username, ip, timestamp, False)
+                    if "tx_hash" in result:
+                        LoginAuditLog.objects.filter(pk=log.pk).update(
+                            blockchain_tx=result["tx_hash"], blockchain_hash=result["log_hash"],
+                            blockchain_block=result["block"], blockchain_url=result["etherscan"]
+                        )
+                threading.Thread(target=_anchor_failed, daemon=True).start()
+                return Response({"detail": "Invalid local credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        else:
+            return Response({"detail": "Please provide either username/password or Google sign-in."}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response(
-                {"detail": "Invalid credentials"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        # ── Setup MFA Intercept (First Login) ─────────────────────
-        user = serializer.user
+        # ── Step 2: Setup MFA Intercept (First Login) ─────────────────────
+        # If user hasn't set up questions yet, force them to do so.
+        # Note: We now allow either google_email or security questions to be missing for the setup trigger, 
+        # but the setup view will still enforce both for maximum security.
         if not user.security_question_1 or not user.google_email:
             return Response({
                 "setup_mfa_required": True,
                 "username": user.username
             }, status=status.HTTP_200_OK)
 
-        # ── Global Mandatory Google OAuth Verification ────────────
-        google_token = request.data.get("google_token")
-        if not google_token:
-            return Response({"detail": "Google Sign-In is required to authenticate."}, status=status.HTTP_401_UNAUTHORIZED)
-            
-        try:
-            idinfo = id_token.verify_oauth2_token(google_token, google_requests.Request(), audience="934642464309-shokqbicjqngv3eo0a927fu9vd7qcuu6.apps.googleusercontent.com")
-            if idinfo.get('email') != user.google_email:
-                raise ValueError("Authorized user mismatch")
-        except Exception as e:
-            # Record failed login due to OAuth violation
-            log = LoginAuditLog.objects.create(
-                username=username,
-                ip_address=ip,
-                success=False,
-                user_agent=user_agent,
-            )
-            def _anchor_mfa_failed_oauth():
-                result = blockchain.anchor_login(username, ip, timestamp, False)
-                if "tx_hash" in result:
-                    LoginAuditLog.objects.filter(pk=log.pk).update(
-                        blockchain_tx=result["tx_hash"], blockchain_hash=result["log_hash"],
-                        blockchain_block=result["block"], blockchain_url=result["etherscan"]
-                    )
-            threading.Thread(target=_anchor_mfa_failed_oauth, daemon=True).start()
-            return Response(
-                {"detail": "Invalid or mismatched Google Authentication. Access denied."},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        # ── Geolocation MFA (Secondary Check) ─────────────────────
+        # ── Step 3: Geolocation MFA (Secondary Check) ─────────────────────
+        # This remains mandatory for BOTH login methods if the location doesn't match.
         mfa_answer_1 = request.data.get("mfa_answer_1")
         mfa_answer_2 = request.data.get("mfa_answer_2")
 
@@ -108,12 +97,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             ans2_correct = user.security_answer_2 and check_password(mfa_answer_2.strip().lower(), user.security_answer_2)
             
             if not (ans1_correct and ans2_correct):
-                # Record failed login due to MFA Questions
                 log = LoginAuditLog.objects.create(
-                    username=username,
-                    ip_address=ip,
-                    success=False,
-                    user_agent=user_agent,
+                    username=username, ip_address=ip, success=False, user_agent=user_agent
                 )
                 def _anchor_mfa_failed():
                     result = blockchain.anchor_login(username, ip, timestamp, False)
@@ -123,17 +108,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                             blockchain_block=result["block"], blockchain_url=result["etherscan"]
                         )
                 threading.Thread(target=_anchor_mfa_failed, daemon=True).start()
-                return Response(
-                    {"detail": "Incorrect security answers. Access denied."},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+                return Response({"detail": "Incorrect security answers. Access denied."}, status=status.HTTP_401_UNAUTHORIZED)
         else:
-            BRANCH_CITY_MAP = {
-                'HQ': 'Chennai',
-                'CNI': 'Chennai',
-                'MDU': 'Madurai',
-                'CMB': 'Coimbatore'
-            }
+            BRANCH_CITY_MAP = {'HQ': 'Chennai', 'CNI': 'Chennai', 'MDU': 'Madurai', 'CMB': 'Coimbatore'}
             expected_city = BRANCH_CITY_MAP.get(user.branch)
             if expected_city:
                 try:
@@ -151,7 +128,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                             "username": user.username
                         }, status=status.HTTP_200_OK)
                 except Exception:
-                    # Fallback to MFA on error
                     return Response({
                         "mfa_required": True,
                         "questions": [
@@ -161,30 +137,39 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                         "username": user.username
                     }, status=status.HTTP_200_OK)
 
-        # ── Record successful login ───────────────────────────────
+        # ── Step 4: Final Success & Tokens ───────────────────────────────
         log = LoginAuditLog.objects.create(
-            username=username,
-            ip_address=ip,
-            success=True,
-            user_agent=user_agent,
+            username=username, ip_address=ip, success=True, user_agent=user_agent
         )
 
-        # ── Anchor in background ──────────────────────────────────
         def _anchor_success():
             result = blockchain.anchor_login(username, ip, timestamp, True)
             if "tx_hash" in result:
                 LoginAuditLog.objects.filter(pk=log.pk).update(
-                    blockchain_tx=result["tx_hash"],
-                    blockchain_hash=result["log_hash"],
-                    blockchain_block=result["block"],
-                    blockchain_url=result["etherscan"],
+                    blockchain_tx=result["tx_hash"], blockchain_hash=result["log_hash"],
+                    blockchain_block=result["block"], blockchain_url=result["etherscan"]
                 )
         threading.Thread(target=_anchor_success, daemon=True).start()
 
-        return Response(
-            serializer.validated_data,
-            status=status.HTTP_200_OK
-        )
+        # Generate tokens
+        if auth_method == "GOOGLE":
+            refresh = CustomTokenObtainPairSerializer.get_token(user)
+            # 🔐 Manually ensure access token also gets our custom claims
+            refresh.access_token['role']     = user.role
+            refresh.access_token['branch']   = user.branch
+            refresh.access_token['username'] = user.username
+            
+            token_data = {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }
+        else:
+            # Re-initialize serializer to get tokens for valid user
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid()
+            token_data = serializer.validated_data
+
+        return Response(token_data, status=status.HTTP_200_OK)
 
 
 class SetupMFAView(APIView):

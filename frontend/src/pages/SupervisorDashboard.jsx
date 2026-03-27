@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 function groupByBranch(cases) {
   return cases.reduce((acc, c) => {
@@ -27,7 +28,7 @@ function SupervisorDashboard() {
       return;
     }
 
-    fetch("http://127.0.0.1:8000/api/supervisor/overview/", {
+    fetch("${API_BASE}/api/supervisor/overview/", {
       headers: {
         Authorization: `Bearer ${token}`,
       },

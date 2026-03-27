@@ -43,9 +43,11 @@ function formatDate(ts) {
   });
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "${API_BASE}";
+
 function downloadReport(caseId, format) {
   const token = localStorage.getItem("access");
-  fetch(`http://localhost:8000/api/cases/${caseId}/report/${format}/`, {
+    fetch(`${API_BASE}/api/cases/${caseId}/report/${format}/`, {
     headers: { Authorization: `Bearer ${token}` },
   })
     .then(res => {
@@ -180,7 +182,7 @@ function ProgressTab({ caseId, role, t }) {
 
   const fetchProgress = useCallback(() => {
     const token = localStorage.getItem("access");
-    fetch(`http://localhost:8000/api/cases/${caseId}/progress/`, {
+    fetch(`${API_BASE}/api/cases/${caseId}/progress/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -197,7 +199,7 @@ function ProgressTab({ caseId, role, t }) {
     setSaving(true); setError("");
     const token = localStorage.getItem("access");
     try {
-      const res = await fetch(`http://localhost:8000/api/cases/${caseId}/progress/`, {
+      const res = await fetch(`${API_BASE}/api/cases/${caseId}/progress/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
@@ -212,7 +214,7 @@ function ProgressTab({ caseId, role, t }) {
 
   const handleComplete = async (pk) => {
     const token = localStorage.getItem("access");
-    await fetch(`http://localhost:8000/api/progress/${pk}/complete/`, {
+    await fetch(`${API_BASE}/api/progress/${pk}/complete/`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -347,11 +349,11 @@ function HandoverTab({ caseId, caseData, t }) {
 
   useEffect(() => {
     const token = localStorage.getItem("access");
-    fetch("http://localhost:8000/api/officers/", {
+    fetch(`${API_BASE}/api/officers/`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(r => r.json()).then(setOfficers).catch(() => {});
 
-    fetch(`http://localhost:8000/api/cases/${caseId}/handover/`, {
+    fetch(`${API_BASE}/api/cases/${caseId}/handover/`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(r => r.json()).then(setHandovers).catch(() => {});
   }, [caseId]);
@@ -362,7 +364,7 @@ function HandoverTab({ caseId, caseData, t }) {
     setSaving(true); setError(""); setSuccess("");
     const token = localStorage.getItem("access");
     try {
-      const res = await fetch(`http://localhost:8000/api/cases/${caseId}/handover/`, {
+      const res = await fetch(`${API_BASE}/api/cases/${caseId}/handover/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ to_officer_id: toOfficerId, reason }),
@@ -483,7 +485,7 @@ function CaseDetail() {
 
   useEffect(() => {
     const token = localStorage.getItem("access");
-    fetch(`http://localhost:8000/api/cases/${id}/`, {
+    fetch(`${API_BASE}/api/cases/${id}/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => { if (!res.ok) throw new Error("Failed to load case"); return res.json(); })
@@ -493,7 +495,7 @@ function CaseDetail() {
       })
       .catch(err => setError(err.message));
 
-    fetch(`http://localhost:8000/api/cases/${id}/custody/`, {
+    fetch(`${API_BASE}/api/cases/${id}/custody/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -509,7 +511,7 @@ function CaseDetail() {
     const token = localStorage.getItem("access");
     setSaving(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/cases/${id}/`, {
+      const res = await fetch(`${API_BASE}/api/cases/${id}/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),

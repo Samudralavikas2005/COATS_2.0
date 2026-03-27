@@ -6,7 +6,8 @@ import {
   LineChart, Line,
 } from "recharts";
 
-const BASE = "http://127.0.0.1:8000/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const BASE = API_BASE + "/api";
 
 async function apiFetch(path) {
   const token = localStorage.getItem("access");

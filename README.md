@@ -7,8 +7,8 @@ A secure, full-stack case management system built for law enforcement agencies t
 ## 🚀 Features
 
 - 🔐 JWT Authentication with role-based access control
-- 🛡️ Mandatory Google OAuth Integration
-- 🌍 Geolocation-based Multi-Factor Authentication (Security Questions)
+- 🛡️ Support for standalone Google OAuth 2.0 OR Conventional Credential logins
+- 🌍 Geolocation-based MFA (Security Questions) for suspicious login attempts
 - 👮 Two roles — Supervisor and Case Holding Officer
 - 🗂 Case registration, tracking and lifecycle management
 - ⚖️ Court stage workflow (UI → PT → HC → SC → CC)
@@ -219,10 +219,10 @@ A threading lock ensures transactions are serialized to prevent nonce collision 
 
 ## 🛡️ Authentication & MFA Flow
 
-COATS 2.0 enforces strict, multi-layered identity verification protocols:
-1. **Google OAuth Verification:** Every login requires a valid Google Workspace credential via `@react-oauth/google`.
-2. **Geolocation Anomaly Detection:** Logins originating outside the user's assigned branch jurisdiction automatically trigger an additional security challenge.
-3. **Cryptographic Security Questions:** The MFA fallback challenges the user with pre-defined security questions which are cryptographically hashed using PBKDF2/Argon2 algorithms.
+COATS 2.0 supports two primary entry points with a shared secondary security layer:
+1. **Choice of Login:** Users can authenticate via **Conventional Credentials** (Username/Password) OR **Google OAuth 2.0**, provided their accounts are linked.
+2. **Geolocation Anomaly Detection:** Every login is audited for location. Logins originating outside the assigned branch jurisdiction automatically trigger a secondary MFA challenge.
+3. **Cryptographic Security Questions:** The MFA fallback requires users to answer pre-defined security questions, which are securely hashed using PBKDF2 algorithms.
 
 ---
 

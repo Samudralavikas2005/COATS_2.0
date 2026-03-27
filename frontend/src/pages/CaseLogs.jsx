@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 const THEMES = {
   dark: {
@@ -425,7 +426,7 @@ function CaseLogs() {
       return;
     }
 
-    fetch("http://127.0.0.1:8000/api/case-logs/", {
+    fetch("${API_BASE}/api/case-logs/", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {

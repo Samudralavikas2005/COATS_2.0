@@ -28,7 +28,7 @@ class User(AbstractUser):
     security_answer_2   = models.CharField(max_length=255, blank=True, null=True)
     
     # ── Google OAuth MFA ──
-    google_email = models.EmailField(blank=True, null=True)
+    google_email = models.EmailField(blank=True, null=True, unique=True)
 
 
 class LoginAuditLog(models.Model):

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 const THEMES = {
@@ -52,15 +54,25 @@ function Login() {
     });
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async (e, gToken = null) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError("");
 
+    const activeGoogleToken = gToken || googleToken;
+
     if (setupMfaRequired) {
       try {
-        const payload = { username, password, question_1: q1, answer_1: answer1, question_2: q2, answer_2: answer2, google_token: googleToken };
-        const res = await fetch("http://localhost:8000/api/setup-mfa/", {
+        const payload = { 
+          username, 
+          password, 
+          question_1: q1, 
+          answer_1: answer1, 
+          question_2: q2, 
+          answer_2: answer2, 
+          google_token: activeGoogleToken 
+        };
+        const res = await fetch("${API_BASE}/api/setup-mfa/", {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
         const data = await res.json();
@@ -69,6 +81,7 @@ function Login() {
         setSetupMfaRequired(false);
         setQ1(""); setQ2(""); setAnswer1(""); setAnswer2("");
         setPassword("");
+        setGoogleToken("");
         window.alert("Security questions saved securely! Please login again.");
         setLoading(false);
       } catch (err) {
@@ -79,19 +92,38 @@ function Login() {
     }
 
     try {
-      const payloadBody = { username, password, google_token: googleToken };
-      if (mfaRequired) {
-        payloadBody.mfa_answer_1 = answer1;
-        payloadBody.mfa_answer_2 = answer2;
+      let payloadBody = {};
+
+      if (activeGoogleToken && !mfaRequired) {
+        // Use Google OAuth Path
+        payloadBody = { google_token: activeGoogleToken };
+      } else if (username && password && !mfaRequired) {
+        // Use Credential Path
+        payloadBody = { username, password };
+      } else if (mfaRequired) {
+        // Continuing MFA Challenge - include identifier and answers
+        payloadBody = { 
+          mfa_answer_1: answer1, 
+          mfa_answer_2: answer2 
+        };
+        if (activeGoogleToken) {
+          payloadBody.google_token = activeGoogleToken;
+        } else {
+          payloadBody.username = username;
+          payloadBody.password = password; // Backend re-authenticates or checks password to be safe
+        }
+      } else {
+        throw new Error("Please enter credentials or sign in with Google.");
       }
-      const res = await fetch("http://localhost:8000/api/token/", {
+
+      const res = await fetch("${API_BASE}/api/token/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadBody),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Invalid credentials");
+      if (!res.ok) throw new Error(data.detail || "Authentication entry denied");
 
       if (data.setup_mfa_required) {
         setSetupMfaRequired(true);
@@ -111,8 +143,6 @@ function Login() {
       localStorage.setItem("refresh", data.refresh);
 
       const payload = JSON.parse(atob(data.access.split(".")[1]));
-
-      // Always store role as UPPERCASE for consistent comparison everywhere
       const role = (payload.role || "").toUpperCase();
 
       localStorage.setItem("role",     role);
@@ -129,6 +159,13 @@ function Login() {
       setError(err.message);
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = (res) => {
+    setGoogleToken(res.credential);
+    setUsername(""); // Clear username UI to show intent
+    setPassword(""); // Clear password UI
+    handleLogin(null, res.credential); // Trigger login immediately
   };
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "70529819777-6k2725k572110c73om9k1t5i4t4cbnv1.apps.googleusercontent.com";
@@ -195,7 +232,10 @@ function Login() {
                   </label>
                   <input
                     value={username}
-                    onChange={e => setUsername(e.target.value)}
+                    onChange={e => {
+                      setUsername(e.target.value);
+                      if (googleToken) setGoogleToken("");
+                    }}
                     placeholder="Enter your username"
                     required
                     autoComplete="username"
@@ -214,7 +254,10 @@ function Login() {
                     <input
                       type={showPass ? "text" : "password"}
                       value={password}
-                      onChange={e => setPassword(e.target.value)}
+                      onChange={e => {
+                        setPassword(e.target.value);
+                        if (googleToken) setGoogleToken("");
+                      }}
                       placeholder="Enter your password"
                       required
                       autoComplete="current-password"
@@ -233,14 +276,28 @@ function Login() {
                 </div>
 
                 {/* Google Sign In Core Hook */}
-                <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "center" }}>
+                <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
                   <GoogleLogin
-                    onSuccess={res => setGoogleToken(res.credential)}
+                    onSuccess={handleGoogleSuccess}
                     onError={() => setError("Google Sign-in failed")}
                     theme={isDark ? "filled_black" : "outline"}
                     text="continue_with"
                     shape="pill"
                   />
+                  {googleToken && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: "0.7rem", color: t.green, fontFamily: "'JetBrains Mono',monospace" }}>
+                        ✓ Google Account Linked
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setGoogleToken("")} 
+                        style={{ border: "none", background: "none", color: t.textMuted, fontSize: "0.6rem", textDecoration: "underline", cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}

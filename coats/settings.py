@@ -1,4 +1,5 @@
 import os
+import dj_database_url
 from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
@@ -8,18 +9,17 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ── Security ──────────────────────────────────────────────────────
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "change-me-before-production"
-)
-
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "change-me-before-production")
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.environ.get(
-    "DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost"
-).split(",")
+_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost")
+ALLOWED_HOSTS = [h.strip() for h in _hosts.split(",") if h.strip()]
 
-# ── Installed apps ─────────────────────────────────────────────────
+# ── CSRF Trusted Origins ──────────────────────────────────────────
+_csrf_env = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(",") if o.strip()]
+
+# ... (INSTALLED_APPS stays same) ...
 INSTALLED_APPS = [
     'corsheaders',
     'django.contrib.admin',
@@ -36,7 +36,6 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = 'accounts.User'
 
-# ── DRF ───────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -47,17 +46,16 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-# ── JWT ───────────────────────────────────────────────────────────
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# ── Middleware ─────────────────────────────────────────────────────
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # 🚀 For production static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -86,15 +84,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'coats.wsgi.application'
 
 # ── Database ───────────────────────────────────────────────────────
+# Uses DATABASE_URL (from Neon/Supabase) if available, else local config
 DATABASES = {
-    'default': {
-        'ENGINE':   'django.db.backends.postgresql',
-        'NAME':     os.environ.get('DB_NAME',     'coats_db'),
-        'USER':     os.environ.get('DB_USER',     'coats_user'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'strongpassword'),
-        'HOST':     os.environ.get('DB_HOST',     'localhost'),
-        'PORT':     os.environ.get('DB_PORT',     '5432'),
-    }
+    'default': dj_database_url.config(
+        default=f"postgres://{os.environ.get('DB_USER','coats_user')}:{os.environ.get('DB_PASSWORD','strongpassword')}@{os.environ.get('DB_HOST','localhost')}:{os.environ.get('DB_PORT','5432')}/{os.environ.get('DB_NAME','coats_db')}",
+        conn_max_age=600,
+    )
 }
 
 # ── Password validation ────────────────────────────────────────────
@@ -114,6 +109,7 @@ USE_TZ = True
 # ── Static files ───────────────────────────────────────────────────
 STATIC_URL  = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 LOGIN_REDIRECT_URL  = '/api/cases/'
 LOGOUT_REDIRECT_URL = '/api-auth/login/'

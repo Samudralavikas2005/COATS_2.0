@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 const THEMES = {
   dark: {
@@ -75,7 +76,7 @@ function LegalAssistant() {
 
     const token = localStorage.getItem("access");
     try {
-      const res = await fetch("http://localhost:8000/api/ai/legal-assistant/", {
+      const res = await fetch("${API_BASE}/api/ai/legal-assistant/", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ message: msg, messages: history }),
@@ -109,7 +110,7 @@ function LegalAssistant() {
     formData.append("message", customMessage || "Please summarize this document and suggest next steps.");
 
     try {
-      const res = await fetch("http://localhost:8000/api/ai/legal-assistant/file/", {
+      const res = await fetch("${API_BASE}/api/ai/legal-assistant/file/", {
         method:  "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body:    formData,
