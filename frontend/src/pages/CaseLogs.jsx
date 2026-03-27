@@ -426,7 +426,7 @@ function CaseLogs() {
       return;
     }
 
-    fetch(`${API_BASE}/api/case-logs/", {
+    fetch(`${API_BASE}/api/case-logs/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {

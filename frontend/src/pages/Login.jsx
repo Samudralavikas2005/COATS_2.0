@@ -72,7 +72,7 @@ function Login() {
           answer_2: answer2, 
           google_token: activeGoogleToken 
         };
-        const res = await fetch(`${API_BASE}/api/setup-mfa/", {
+        const res = await fetch(`${API_BASE}/api/setup-mfa/`, {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
         const data = await res.json();
@@ -116,7 +116,7 @@ function Login() {
         throw new Error("Please enter credentials or sign in with Google.");
       }
 
-      const res = await fetch(`${API_BASE}/api/token/", {
+      const res = await fetch(`${API_BASE}/api/token/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadBody),
