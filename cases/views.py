@@ -409,8 +409,12 @@ class LegalAssistantView(APIView):
         if not user_message:
             return Response({"error": "Message is required"}, status=400)
 
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            return Response({"error": "GROQ_API_KEY is not configured in Render environment variables."}, status=500)
+
         try:
-            client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+            client = Groq(api_key=api_key)
 
             messages = [
                 {
@@ -431,7 +435,7 @@ Always give clear, accurate, practical answers relevant to Indian law enforcemen
             ]
 
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=messages,
                 max_tokens=1024,
                 temperature=0.7,
@@ -492,7 +496,11 @@ class LegalAssistantFileView(APIView):
             file_text = file_text[:8000]
 
             # ── Call Groq ─────────────────────────────────────────
-            client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+            api_key = os.environ.get("GROQ_API_KEY")
+            if not api_key:
+                return Response({"error": "GROQ_API_KEY is not configured in Render environment variables."}, status=500)
+
+            client = Groq(api_key=api_key)
 
             prompt = f"""The following is the content of a legal document uploaded by a Tamil Nadu Police officer.
 --- DOCUMENT START ---
@@ -508,7 +516,7 @@ Please provide:
 5. **Important Deadlines** — Any dates or deadlines mentioned that need attention?"""
 
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {
                         "role": "system",
