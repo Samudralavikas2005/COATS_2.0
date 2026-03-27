@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 const THEMES = {
   dark: {
     bgBase: "#0b0e17", bgCard: "#141927", bgCardHover: "#1a2236",
@@ -43,7 +45,7 @@ function formatDate(ts) {
   });
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || `${API_BASE}`;
+// API_BASE is defined at the top
 
 function downloadReport(caseId, format) {
   const token = localStorage.getItem("access");
