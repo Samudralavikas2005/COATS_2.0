@@ -14,6 +14,7 @@ from .views import (
     SupervisorCaseOverview,
     CaseReportPDFView,
     CaseReportCSVView,
+    CaseRecommendationView,
 )
 from .dashboard_views import (
     DashboardKPIView,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("cases/<uuid:pk>/handover/",           CaseHandoverView.as_view()),
     path("cases/<uuid:pk>/report/pdf/",         CaseReportPDFView.as_view()),
     path("cases/<uuid:pk>/report/csv/",         CaseReportCSVView.as_view()),
+    path("cases/<uuid:pk>/recommendations/",    CaseRecommendationView.as_view()),
     # ── Progress ──────────────────────────────────────────────────
     path("progress/<int:pk>/complete/",         CaseProgressCompleteView.as_view()),
     # ── Logs ──────────────────────────────────────────────────────

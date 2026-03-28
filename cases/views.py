@@ -22,10 +22,11 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
 from reportlab.lib.enums import TA_CENTER
 
+from django.db.models import Q
 from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover
 from .serializers import (
     CaseSerializer, CaseLogSerializer, ChainOfCustodySerializer,
-    CaseProgressSerializer, CaseHandoverSerializer,
+    CaseProgressSerializer, CaseHandoverSerializer, CaseRecommendationSerializer
 )
 from .permissions import IsCaseOwner
 from blockchain.service import blockchain
@@ -824,3 +825,57 @@ class CaseReportCSVView(APIView):
             ])
 
         return response
+
+
+class CaseRecommendationView(APIView):
+    permission_classes = [IsCaseOwner]
+
+    def get(self, request, pk):
+        try:
+            current_case = Case.objects.get(pk=pk)
+        except Case.DoesNotExist:
+            return Response({"error": "Case not found"}, status=404)
+
+        # 1. Similarity by Accused Names
+        accused_names = set()
+        if current_case.accused_details:
+            # Simple split by common delimiters
+            import re
+            parts = re.split(r'[,;\n\r]', current_case.accused_details)
+            for p in parts:
+                name = p.strip().lower()
+                if len(name) > 3: # Ignore very short names/placeholders
+                    accused_names.add(name)
+
+        # 2. Similarity by Branch and Section of Law
+        # We prioritize:
+        # - Exact Accused Name match (High)
+        # - Same Branch + Same Section of Law (Medium)
+        
+        related_cases = Case.objects.filter(
+            ~Q(id=current_case.id)
+        ).filter(
+            Q(branch=current_case.branch, section_of_law=current_case.section_of_law) |
+            Q(accused_details__icontains="") # Placeholder if no names
+        )
+
+        # If we have names, use them for a more targeted search
+        if accused_names:
+            name_query = Q()
+            for name in accused_names:
+                name_query |= Q(accused_details__icontains=name)
+            
+            # Combine queries: Either same branch/type OR name match
+            related_cases = Case.objects.filter(
+                ~Q(id=current_case.id)
+            ).filter(
+                Q(branch=current_case.branch, section_of_law=current_case.section_of_law) |
+                name_query
+            )
+
+        # Sort: Most recently updated first for relevancy
+        # In a real-world scenario, we might use a proper scoring algorithm
+        related_cases = related_cases.order_by("-date_of_first_updation")[:5]
+
+        serializer = CaseRecommendationSerializer(related_cases, many=True)
+        return Response(serializer.data)

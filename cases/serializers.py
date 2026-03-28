@@ -92,3 +92,9 @@ class CaseHandoverSerializer(serializers.ModelSerializer):
             "blockchain_tx", "blockchain_hash",
             "blockchain_block", "blockchain_url",
         ]
+
+
+class CaseRecommendationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Case
+        fields = ["id", "crime_number", "section_of_law", "accused_details", "branch", "current_stage"]

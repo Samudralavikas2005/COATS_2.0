@@ -454,6 +454,75 @@ function HandoverTab({ caseId, caseData, t }) {
   );
 }
 
+
+function RecommendationsTab({ caseId, t, navigate }) {
+  const [recommendations, setRecommendations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access");
+    fetch(`${API_BASE}/api/cases/${caseId}/recommendations/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        setRecommendations(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [caseId]);
+
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, color: t.textMuted, fontSize: "0.8rem", fontFamily: "'JetBrains Mono',monospace", padding: "2rem" }}>
+      <div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${t.accent}33`, borderTopColor: t.accent, animation: "cPulse 1s infinite linear" }} />
+      Analyzing patterns for related cases...
+    </div>
+  );
+
+  if (recommendations.length === 0) {
+    return (
+      <div style={{ background: `${t.accent}08`, border: `1px dashed ${t.border}`, borderRadius: 16, padding: "3rem 2rem", textAlign: "center", color: t.textMuted, animation: "cFadeIn 0.5s ease-out" }}>
+        <div style={{ fontSize: "2rem", marginBottom: 12, opacity: 0.5 }}>🧠</div>
+        <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.95rem", fontWeight: 600, color: t.textPrimary, marginBottom: 4 }}>No direct matches found</div>
+        <div style={{ fontSize: "0.8rem", maxWidth: 300, margin: "0 auto", lineHeight: 1.5 }}>Our intelligence system didn't find other cases with matching accused or crime patterns at this moment.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ animation: "cFadeIn 0.4s ease-out" }}>
+      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>🧠 Smart Recommendations</span>
+        <div style={{ padding: "2px 8px", background: `linear-gradient(45deg, ${t.accent}, ${t.purple})`, color: "#fff", borderRadius: 4, fontSize: "0.5rem", fontWeight: 800, letterSpacing: "0.05em" }}>AI POWERED</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.25rem" }}>
+        {recommendations.map(rec => (
+          <div key={rec.id} onClick={() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            navigate(`/cases/${rec.id}`);
+          }} 
+          style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 14, padding: "1.25rem", cursor: "pointer", transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", position: "relative", overflow: "hidden" }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.boxShadow = `0 10px 25px -5px ${t.accent}20`; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.boxShadow = "none"; }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.accent }}>{rec.crime_number}</span>
+              <StageBadge code={rec.current_stage} />
+            </div>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.95rem", fontWeight: 700, color: t.textPrimary, marginBottom: 6, lineHeight: 1.3 }}>{rec.section_of_law}</div>
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textSecond, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.5 }}>
+              <span style={{ opacity: 0.6 }}>Accused:</span> {rec.accused_details || "N/A"}
+            </div>
+            <div style={{ marginTop: 15, paddingTop: 12, borderTop: `1px solid ${t.border}44`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "0.7rem", color: t.textMuted, display: "flex", alignItems: "center", gap: 4 }}>📍 {rec.branch}</span>
+              <div style={{ fontSize: "0.65rem", color: t.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>View Intelligence →</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────
 function CaseDetail() {
   const getTheme = () => {
@@ -543,6 +612,7 @@ function CaseDetail() {
     { key: "details",  label: "📋 Case Details" },
     { key: "progress", label: "📊 Progress" },
     { key: "custody",  label: `🔗 Custody (${custody.length})` },
+    { key: "recommendations", label: "🧠 Related Cases" },
     ...(role === "SUPERVISOR" ? [{ key: "handover", label: "👮 Handover" }] : []),
   ];
 
@@ -705,6 +775,13 @@ function CaseDetail() {
             {activeTab === "handover" && role === "SUPERVISOR" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
                 <HandoverTab caseId={id} caseData={caseData} t={t} />
+              </div>
+            )}
+
+            {/* ── RECOMMENDATIONS TAB ── */}
+            {activeTab === "recommendations" && (
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "2rem", boxShadow: t.shadow }}>
+                <RecommendationsTab caseId={id} t={t} navigate={navigate} />
               </div>
             )}
 
