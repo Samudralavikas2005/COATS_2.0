@@ -8,12 +8,12 @@ class CustomUserAdmin(UserAdmin):
     list_display  = ["username", "role", "branch", "is_staff", "is_active"]
     list_filter   = ["role", "branch"]
     fieldsets     = UserAdmin.fieldsets + (
-        ("COATS Info", {"fields": ("role", "branch")}),
+        ("COATS Info", {"fields": ("role", "branch", "google_email")}),
     )
     
     add_fieldsets = UserAdmin.add_fieldsets + (
         ("COATS Info", {
-            "fields": ("role", "branch")
+            "fields": ("role", "branch", "google_email")
         }),
     )
 
