@@ -11,7 +11,6 @@ import { startSessionTimeout, stopSessionTimeout } from "./utils/sessionTimeout"
 import LegalAssistant from "./pages/LegalAssistant";
 import CrimeMap from "./pages/CrimeMap";
 import { LanguageProvider } from "./i18n/LanguageContext";
-import AdminSecurity from "./pages/AdminSecurity";
 
 function App() {
   useEffect(() => {
@@ -38,9 +37,8 @@ function App() {
           <Route path="/cases/:id" element={<ProtectedRoute><CaseDetail /></ProtectedRoute>} />
           <Route path="/create-case" element={<ProtectedRoute requiredRole="CASE"><CreateCase /></ProtectedRoute>} />
 
-          {/* Supervisor & Superuser routes */}
+          {/* Supervisor routes */}
           <Route path="/dashboard" element={<ProtectedRoute requiredRole="SUPERVISOR"><COATSDashboard /></ProtectedRoute>} />
-          <Route path="/admin-security" element={<ProtectedRoute requiredRole="SUPERVISOR"><AdminSecurity /></ProtectedRoute>} />
 
           {/* Shared — both roles */}
           <Route path="/logs" element={<ProtectedRoute><CaseLogs /></ProtectedRoute>} />

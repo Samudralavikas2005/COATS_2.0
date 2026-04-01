@@ -325,10 +325,6 @@ export default function COATSDashboard() {
               ⚖️ {tr("legalAI")}
             </HeaderBtn>
 
-            <HeaderBtn onClick={() => navigate("/admin-security")} t={t} accent={t.red}>
-              🔐 HQ Master Audit
-            </HeaderBtn>
-
             <HeaderBtn onClick={() => navigate("/crime-map")} t={t} accent={t.green}>
               🗺️ {tr("crimeMap")}
             </HeaderBtn>

@@ -25,7 +25,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.enums import TA_CENTER
 
 from django.db.models import Q
-from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover, Evidence, Witness
+from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover, Evidence, Witness, InsiderThreatAlert
 from .serializers import (
     CaseSerializer, CaseLogSerializer, ChainOfCustodySerializer,
     CaseProgressSerializer, CaseHandoverSerializer, CaseRecommendationSerializer,
@@ -1127,7 +1127,13 @@ class InsiderThreatView(APIView):
                     score += out_of_bounds * 2
                     reasons.append(f"Out-of-jurisdiction access ({out_of_bounds} cases outside {u.branch})")
             
-            if score > 0:
+            if score >= 5:
+                # ── Record to Backend Admin Page ──
+                InsiderThreatAlert.objects.get_or_create(
+                    user=u, score=score, 
+                    reasons=", ".join(reasons)
+                )
+
                 threats.append({
                     "id": u.id,
                     "username": u.username,
