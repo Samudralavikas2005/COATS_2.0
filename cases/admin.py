@@ -22,7 +22,7 @@ class InsiderThreatAlertAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request): return False
     def has_change_permission(self, request, obj=None): return False
-
+@admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
     list_display  = ["crime_number", "section_of_law", "current_stage", "branch", "case_holding_officer"]
     list_filter   = ["current_stage", "branch"]
