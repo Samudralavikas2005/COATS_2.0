@@ -32,5 +32,5 @@ urlpatterns = [
                                    ),                                  name="swagger-ui"),
 ]
 
-# ── Serve media files in development ──────────────────────────────
+# ── Serve media files (Enabled for Render) ────────────────────────
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
