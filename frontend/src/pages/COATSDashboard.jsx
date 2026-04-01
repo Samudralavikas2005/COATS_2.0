@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { LanguageSwitcher } from '../i18n/LanguageContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -300,6 +301,7 @@ export default function COATSDashboard() {
                   {isDark ? "🌙" : "☀️"}
                 </div>
               </div>
+              <LanguageSwitcher t={t} />
             </div>
 
             <HeaderBtn onClick={handleViewAllCases} t={t} accent={t.purple}>
