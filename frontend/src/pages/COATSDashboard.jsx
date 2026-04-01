@@ -184,6 +184,7 @@ export default function COATSDashboard() {
   const [severity, setSeverity] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [recent, setRecent] = useState([]);
+  const [threats, setThreats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
@@ -209,12 +210,23 @@ export default function COATSDashboard() {
 
   const loadDashboard = useCallback(async () => {
     try {
-      const [kpiData, sevData, timeData, recentData] = await Promise.all([
+      const p = [
         apiFetch("/dashboard/kpi/"),
         apiFetch("/dashboard/by-severity/"),
         apiFetch("/dashboard/timeline/"),
         apiFetch("/dashboard/recent-cases/"),
-      ]);
+      ];
+      // Only supervisors can access threats
+      if (role === 'SUPERVISOR') {
+        p.push(apiFetch("/intelligence/insider-threats/"));
+      }
+
+      const results = await Promise.all(p);
+      const kpiData = results[0];
+      const sevData = results[1];
+      const timeData = results[2];
+      const recentData = results[3];
+      if (role === 'SUPERVISOR') setThreats(results[4]);
 
       if (kpiData.total_cases > prevTotal.current && prevTotal.current !== 0) {
         setFlash(true);
@@ -458,7 +470,37 @@ export default function COATSDashboard() {
           </Card>
         </div>
 
-        {/* RECENT CASES */}
+        {/* THREATS & RECENT CASES */}
+        <div style={{ display: "grid", gridTemplateColumns: role === 'SUPERVISOR' ? "1fr 1fr" : "1fr", gap: "1.5rem" }}>
+        
+        {role === 'SUPERVISOR' && (
+          <Card t={t}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <SectionLabel t={t}>⚠️ Insider Threat Radar</SectionLabel>
+            </div>
+            {threats.length === 0 ? (
+              <EmptyState t={t} msg="No suspicious activity detected." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {threats.map(th => th.score >= 5 ? (
+                  <div key={th.id} style={{ background: `${t.red}1a`, border: `1px solid ${t.red}44`, borderRadius: 10, padding: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.red }}>
+                        🚨 {th.username.toUpperCase()}
+                        <span style={{ fontSize: "0.6rem", background: t.red, color: "#fff", padding: "2px 6px", borderRadius: 4, marginLeft: 8 }}>High Risk ({th.score})</span>
+                      </div>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted }}>{th.branch}</div>
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.red }}>
+                      {th.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                    </ul>
+                  </div>
+                ) : null)}
+              </div>
+            )}
+          </Card>
+        )}
+
         <Card t={t}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
             <SectionLabel t={t}>Recently Filed Cases</SectionLabel>
@@ -491,6 +533,7 @@ export default function COATSDashboard() {
             </table>
           )}
         </Card>
+        </div>
       </div>
     </>
   );

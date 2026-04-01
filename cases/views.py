@@ -1072,4 +1072,66 @@ class CrimeMapDataView(APIView):
         return Response(result)
 
 
-# ── Accused Link Analysis ─────────────────────────────────────────
+# ── Insider Threat Detection ──────────────────────────────────────
+class InsiderThreatView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'SUPERVISOR':
+            raise PermissionDenied("Only Supervisors can access the threat analysis dashboard.")
+            
+        users = User.objects.all()
+        threats = []
+        today = timezone.now()
+        yesterday = today - timezone.timedelta(days=1)
+        thirty_days_ago = today - timezone.timedelta(days=30)
+        
+        for u in users:
+            score = 0
+            reasons = []
+            
+            # 1. Time-Based Analysis (Midnight Access 11 PM - 5 AM)
+            recent_custody = ChainOfCustody.objects.filter(
+                officer=u, 
+                timestamp__gte=yesterday
+            )
+            late_count = sum(1 for c in recent_custody if c.timestamp.hour in [23, 0, 1, 2, 3, 4])
+            
+            if late_count > 0:
+                score += late_count * 2
+                reasons.append(f"Late night access ({late_count} times)")
+                
+            # 2. Frequency & Volume Analysis
+            recent_volume = recent_custody.count()
+            month_volume = ChainOfCustody.objects.filter(
+                officer=u, 
+                timestamp__gte=thirty_days_ago, 
+                timestamp__lt=yesterday
+            ).count()
+            
+            baseline = max(month_volume / 30, 2)
+            
+            if recent_volume > baseline * 4 and recent_volume > 10:
+                score += 5
+                reasons.append(f"Abnormal high volume ({recent_volume} actions vs {baseline:.1f} avg)")
+                
+            # 3. Access Pattern Analysis (Out of Jurisdiction)
+            if u.role == 'CASE' and u.branch:
+                out_of_bounds = recent_custody.exclude(case__branch=u.branch).count()
+                if out_of_bounds > 0:
+                    score += out_of_bounds * 2
+                    reasons.append(f"Out-of-jurisdiction access ({out_of_bounds} cases outside {u.branch})")
+            
+            if score > 0:
+                threats.append({
+                    "id": u.id,
+                    "username": u.username,
+                    "role": u.role,
+                    "branch": u.branch,
+                    "score": score,
+                    "reasons": reasons
+                })
+                
+        # Sort descending by risk score
+        threats.sort(key=lambda x: x["score"], reverse=True)
+        return Response(threats)
