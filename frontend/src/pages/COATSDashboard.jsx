@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { LanguageSwitcher } from '../i18n/LanguageContext';
+import { LanguageSwitcher, useLanguage } from '../i18n/LanguageContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -172,6 +172,7 @@ export default function COATSDashboard() {
   const username = localStorage.getItem("username");
   const branch = localStorage.getItem("branch");
   const role = localStorage.getItem("role");
+  const { tr } = useLanguage();
 
   const getTheme = () => {
     try { return localStorage.getItem("coats-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); }
@@ -284,7 +285,7 @@ export default function COATSDashboard() {
               {lastSync && !loading && <span style={{ marginLeft: 10 }}>· Synced {lastSync.toLocaleTimeString("en-IN")}</span>}
             </div>
             <h1 style={{ fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1.2 }}>
-              🚔 COATS Command Center
+              🚔 {tr("commandCenter")}
             </h1>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted, marginTop: 5 }}>
               {username && <>Logged in as <span style={{ color: t.accent }}>{username}</span> · {role === "SUPERVISOR" ? "Supervisor" : "Case Officer"} · {branch}</>}
@@ -305,19 +306,19 @@ export default function COATSDashboard() {
             </div>
 
             <HeaderBtn onClick={handleViewAllCases} t={t} accent={t.purple}>
-              📋 All Cases
+              📋 {tr("allCases")}
             </HeaderBtn>
 
             <HeaderBtn onClick={() => navigate("/legal-assistant")} t={t} accent={t.purple}>
-              ⚖️ Legal AI
+              ⚖️ {tr("legalAI")}
             </HeaderBtn>
 
             <HeaderBtn onClick={() => navigate("/crime-map")} t={t} accent={t.green}>
-              🗺️ Crime Map
+              🗺️ {tr("crimeMap")}
             </HeaderBtn>
 
             <HeaderBtn onClick={handleLogout} t={t} accent={t.red} outline>
-              Logout
+              {tr("logout")}
             </HeaderBtn>
           </div>
         </div>
@@ -331,16 +332,16 @@ export default function COATSDashboard() {
 
         {/* KPI CARDS */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
-          <KpiCard label="Total Cases" value={kpi.total_cases} accent={t.accent} icon="📁" t={t} />
-          <KpiCard label="Active Cases" value={kpi.active_cases} accent={t.yellow} icon="🔍" t={t} />
-          <KpiCard label="Closed Cases" value={kpi.closed_cases} accent={t.green} icon="✅" t={t} />
-          <KpiCard label="Cases This Month" value={kpi.cases_this_month} accent={t.red} icon="📅" t={t} />
+          <KpiCard label={tr("totalCases")} value={kpi.total_cases} accent={t.accent} icon="📁" t={t} />
+          <KpiCard label={tr("activeCases")} value={kpi.active_cases} accent={t.yellow} icon="🔍" t={t} />
+          <KpiCard label={tr("closedCases")} value={kpi.closed_cases} accent={t.green} icon="✅" t={t} />
+          <KpiCard label={tr("casesThisMonth")} value={kpi.cases_this_month} accent={t.red} icon="📅" t={t} />
         </div>
 
         {/* CHARTS ROW */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
           <Card t={t}>
-            <SectionLabel t={t}>Cases by Severity — IPC Classification</SectionLabel>
+            <SectionLabel t={t}>{tr("severityChart")}</SectionLabel>
             {sevChartData.length === 0 || sevChartData.every(d => d.total === 0) ? (
               <EmptyState t={t} msg="No cases registered yet. Chart will populate once cases are filed." />
             ) : (
@@ -369,7 +370,7 @@ export default function COATSDashboard() {
           </Card>
 
           <Card t={t}>
-            <SectionLabel t={t}>Monthly Filing Trend</SectionLabel>
+            <SectionLabel t={t}>{tr("monthlyTrend")}</SectionLabel>
             {timeData.length === 0 ? (
               <EmptyState t={t} msg="Timeline builds as cases are filed over time." />
             ) : (
