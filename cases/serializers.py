@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover
+from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover, Evidence, Witness
 
 
 class CaseSerializer(serializers.ModelSerializer):
@@ -98,3 +98,43 @@ class CaseRecommendationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Case
         fields = ["id", "crime_number", "section_of_law", "accused_details", "branch", "current_stage"]
+
+
+class EvidenceSerializer(serializers.ModelSerializer):
+    uploaded_by_username = serializers.CharField(
+        source="uploaded_by.username", read_only=True
+    )
+
+    class Meta:
+        model = Evidence
+        fields = [
+            "id", "case", "file", "file_name", "file_type", "file_size",
+            "file_hash", "description", "uploaded_by", "uploaded_by_username",
+            "uploaded_at", "ip_address",
+            "blockchain_tx", "blockchain_hash", "blockchain_block", "blockchain_url",
+        ]
+        read_only_fields = [
+            "file_name", "file_type", "file_size", "file_hash",
+            "uploaded_by", "uploaded_by_username", "uploaded_at", "ip_address",
+            "blockchain_tx", "blockchain_hash", "blockchain_block", "blockchain_url",
+        ]
+
+
+class WitnessSerializer(serializers.ModelSerializer):
+    added_by_username = serializers.CharField(
+        source="added_by.username", read_only=True
+    )
+
+    class Meta:
+        model = Witness
+        fields = [
+            "id", "case", "name", "age", "gender", "address", "phone",
+            "relationship", "statement", "is_hostile", "is_section_164",
+            "protection_status", "added_by", "added_by_username", "added_at",
+            "blockchain_tx", "blockchain_hash", "blockchain_block", "blockchain_url",
+        ]
+        read_only_fields = [
+            "added_by", "added_by_username", "added_at",
+            "blockchain_tx", "blockchain_hash", "blockchain_block", "blockchain_url",
+        ]
+

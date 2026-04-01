@@ -15,6 +15,10 @@ from .views import (
     CaseReportPDFView,
     CaseReportCSVView,
     CaseRecommendationView,
+    EvidenceListCreateView,
+    WitnessListCreateView,
+    CrimeMapDataView,
+    AccusedLinkAnalysisView,
 )
 from .dashboard_views import (
     DashboardKPIView,
@@ -33,6 +37,8 @@ urlpatterns = [
     path("cases/<uuid:pk>/report/pdf/",         CaseReportPDFView.as_view()),
     path("cases/<uuid:pk>/report/csv/",         CaseReportCSVView.as_view()),
     path("cases/<uuid:pk>/recommendations/",    CaseRecommendationView.as_view()),
+    path("cases/<uuid:pk>/evidence/",           EvidenceListCreateView.as_view()),
+    path("cases/<uuid:pk>/witnesses/",          WitnessListCreateView.as_view()),
     # ── Progress ──────────────────────────────────────────────────
     path("progress/<int:pk>/complete/",         CaseProgressCompleteView.as_view()),
     # ── Logs ──────────────────────────────────────────────────────
@@ -47,7 +53,10 @@ urlpatterns = [
     path("dashboard/by-severity/",              DashboardBySeverityView.as_view()),
     path("dashboard/timeline/",                 DashboardTimelineView.as_view()),
     path("dashboard/recent-cases/",             DashboardRecentCasesView.as_view()),
-    # --GROK AI-------------------------------------------------------------
-    path("ai/legal-assistant/", LegalAssistantView.as_view()),
-    path("ai/legal-assistant/file/", LegalAssistantFileView.as_view()),
+    # ── Intelligence ──────────────────────────────────────────────
+    path("intelligence/crime-map/",             CrimeMapDataView.as_view()),
+    path("intelligence/link-analysis/",         AccusedLinkAnalysisView.as_view()),
+    # ── AI ────────────────────────────────────────────────────────
+    path("ai/legal-assistant/",                 LegalAssistantView.as_view()),
+    path("ai/legal-assistant/file/",            LegalAssistantFileView.as_view()),
 ]

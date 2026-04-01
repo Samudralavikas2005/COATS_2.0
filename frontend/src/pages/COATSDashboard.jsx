@@ -291,7 +291,7 @@ export default function COATSDashboard() {
           </div>
 
           {/* TOP-RIGHT CONTROLS */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {/* Theme toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 2 }}>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>{isDark ? "Dark" : "Light"}</span>
@@ -306,9 +306,16 @@ export default function COATSDashboard() {
               📋 All Cases
             </HeaderBtn>
 
-            {/* Legal AI button added here */}
             <HeaderBtn onClick={() => navigate("/legal-assistant")} t={t} accent={t.purple}>
               ⚖️ Legal AI
+            </HeaderBtn>
+
+            <HeaderBtn onClick={() => navigate("/crime-map")} t={t} accent={t.green}>
+              🗺️ Crime Map
+            </HeaderBtn>
+
+            <HeaderBtn onClick={() => navigate("/link-analysis")} t={t} accent={t.yellow}>
+              🕸️ Link Analysis
             </HeaderBtn>
 
             <HeaderBtn onClick={handleLogout} t={t} accent={t.red} outline>

@@ -18,7 +18,14 @@ A secure, full-stack case management system built for law enforcement agencies t
 - 👮 Case handover — Supervisors can reassign cases with full history
 - 📄 Report download — full case report as PDF or CSV
 - 📊 Supervisor dashboard with live analytics (KPI, severity, timeline)
-- ⛓️ Blockchain anchoring — every log hashed to Sepolia testnet
+- 🧠 AI Legal Assistant (Powered by Groq LLaMA-3) — chat with legal documents or case history
+- ✨ Smart Case Recommendations — AI-driven similarity engine identifying connected crimes
+- 📁 Digital Evidence Vault — cryptographically hashed (SHA-256) file storage anchored to blockchain
+- 👥 Witness Management — structured system for recording statements, including Sec 164 CrPC flags
+- 🗺️ Crime Hotspot Map — interactive Live Map visualizing cases across Tamil Nadu branches
+- 🕸️ Accused Link Analysis — physics-based force-directed Network Graph to visualize repeat offenders
+- 🌐 Multi-Language System (i18n) — dynamic translation support (English, Tamil, Hindi)
+- ⛓️ Blockchain anchoring — every log, evidence, and witness statement hashed to Sepolia testnet
 - 🔒 Mandatory reason enforcement for all case updates
 - 🌐 IP address tracking on all actions
 - 📅 Auto-refresh on cases page every 10 seconds

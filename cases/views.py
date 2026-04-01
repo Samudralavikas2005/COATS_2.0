@@ -3,8 +3,10 @@ import io
 import hashlib
 import threading
 import os
+import re
 import PyPDF2
 import base64
+from collections import defaultdict
 from rest_framework import generics, parsers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -23,10 +25,11 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.enums import TA_CENTER
 
 from django.db.models import Q
-from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover
+from .models import Case, CaseLog, ChainOfCustody, CaseProgress, CaseHandover, Evidence, Witness
 from .serializers import (
     CaseSerializer, CaseLogSerializer, ChainOfCustodySerializer,
-    CaseProgressSerializer, CaseHandoverSerializer, CaseRecommendationSerializer
+    CaseProgressSerializer, CaseHandoverSerializer, CaseRecommendationSerializer,
+    EvidenceSerializer, WitnessSerializer,
 )
 from .permissions import IsCaseOwner
 from blockchain.service import blockchain
@@ -879,3 +882,278 @@ class CaseRecommendationView(APIView):
 
         serializer = CaseRecommendationSerializer(related_cases, many=True)
         return Response(serializer.data)
+
+
+# ── Digital Evidence Vault ────────────────────────────────────────
+class EvidenceListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def get(self, request, pk):
+        evidence = Evidence.objects.filter(case_id=pk)
+        serializer = EvidenceSerializer(evidence, many=True, context={"request": request})
+        return Response(serializer.data)
+
+    def post(self, request, pk):
+        if request.user.role != "CASE":
+            raise PermissionDenied("Only Case Officers can upload evidence.")
+
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"error": "No file uploaded"}, status=400)
+
+        try:
+            case = Case.objects.get(pk=pk)
+        except Case.DoesNotExist:
+            return Response({"error": "Case not found"}, status=404)
+
+        # Compute SHA-256
+        file_bytes = file.read()
+        file_hash = hashlib.sha256(file_bytes).hexdigest()
+        file.seek(0)
+
+        # Determine file type
+        ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
+        type_map = {
+            "jpg": "IMAGE", "jpeg": "IMAGE", "png": "IMAGE", "gif": "IMAGE", "webp": "IMAGE",
+            "mp4": "VIDEO", "avi": "VIDEO", "mov": "VIDEO", "mkv": "VIDEO",
+            "pdf": "PDF",
+            "doc": "DOCUMENT", "docx": "DOCUMENT", "txt": "DOCUMENT", "xls": "DOCUMENT", "xlsx": "DOCUMENT",
+            "mp3": "AUDIO", "wav": "AUDIO", "ogg": "AUDIO",
+        }
+        file_type = type_map.get(ext, "OTHER")
+
+        evidence = Evidence.objects.create(
+            case=case,
+            file=file,
+            file_name=file.name,
+            file_type=file_type,
+            file_size=len(file_bytes),
+            file_hash=file_hash,
+            description=request.data.get("description", ""),
+            uploaded_by=request.user,
+            ip_address=get_client_ip(request),
+        )
+
+        # Blockchain anchor
+        def _anchor():
+            data = f"{evidence.case_id}{evidence.file_hash}{evidence.file_name}{evidence.uploaded_at}"
+            log_hash = hashlib.sha256(data.encode()).hexdigest()
+            result = blockchain._anchor(log_hash, str(case.id), case.crime_number)
+            if "tx_hash" in result:
+                Evidence.objects.filter(pk=evidence.pk).update(
+                    blockchain_tx=result["tx_hash"],
+                    blockchain_hash=result["log_hash"],
+                    blockchain_block=result["block"],
+                    blockchain_url=result["etherscan"],
+                )
+        threading.Thread(target=_anchor, daemon=True).start()
+
+        # Record in chain of custody
+        record_custody(
+            case=case,
+            user=request.user,
+            action="UPDATED",
+            reason=f"Evidence uploaded: {file.name}",
+            notes=f"SHA-256: {file_hash}",
+            ip_address=get_client_ip(request),
+        )
+
+        return Response(EvidenceSerializer(evidence, context={"request": request}).data, status=201)
+
+
+# ── Witness Management ────────────────────────────────────────────
+class WitnessListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        witnesses = Witness.objects.filter(case_id=pk)
+        return Response(WitnessSerializer(witnesses, many=True).data)
+
+    def post(self, request, pk):
+        if request.user.role != "CASE":
+            raise PermissionDenied("Only Case Officers can add witnesses.")
+
+        try:
+            case = Case.objects.get(pk=pk)
+        except Case.DoesNotExist:
+            return Response({"error": "Case not found"}, status=404)
+
+        serializer = WitnessSerializer(data={**request.data, "case": str(pk)})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        witness = serializer.save(added_by=request.user)
+
+        # Blockchain anchor
+        def _anchor():
+            data = f"{witness.case_id}{witness.name}{witness.statement}{witness.added_at}"
+            log_hash = hashlib.sha256(data.encode()).hexdigest()
+            result = blockchain._anchor(log_hash, str(case.id), case.crime_number)
+            if "tx_hash" in result:
+                Witness.objects.filter(pk=witness.pk).update(
+                    blockchain_tx=result["tx_hash"],
+                    blockchain_hash=result["log_hash"],
+                    blockchain_block=result["block"],
+                    blockchain_url=result["etherscan"],
+                )
+        threading.Thread(target=_anchor, daemon=True).start()
+
+        record_custody(
+            case=case,
+            user=request.user,
+            action="UPDATED",
+            reason=f"Witness added: {witness.name}",
+            notes=f"Sec 164: {'Yes' if witness.is_section_164 else 'No'}",
+            ip_address=get_client_ip(request),
+        )
+
+        return Response(WitnessSerializer(witness).data, status=201)
+
+
+# ── Crime Hotspot Map Data ────────────────────────────────────────
+# Approximate GPS coordinates for Tamil Nadu police station areas
+PS_COORDINATES = {
+    # Chennai
+    "Adyar": [13.0012, 80.2565], "T.Nagar": [13.0418, 80.2341],
+    "Anna Nagar": [13.0850, 80.2101], "Ambattur": [13.1143, 80.1548],
+    "Perambur": [13.1120, 80.2330], "Mylapore": [13.0334, 80.2707],
+    "Thiruvanmiyur": [12.9870, 80.2638], "Velachery": [12.9815, 80.2180],
+    "Kodambakkam": [13.0520, 80.2240], "Guindy": [13.0067, 80.2206],
+    "Nungambakkam": [13.0600, 80.2440], "Egmore": [13.0732, 80.2609],
+    "Kilpauk": [13.0830, 80.2460], "Royapuram": [13.1070, 80.2940],
+    "Tondiarpet": [13.1210, 80.2830], "Saidapet": [13.0220, 80.2280],
+    "Alandur": [13.0010, 80.2030], "Chromepet": [12.9516, 80.1419],
+    "Tambaram": [12.9249, 80.1000], "Porur": [13.0370, 80.1560],
+    "Chennai North": [13.1100, 80.2800], "Chennai South": [12.9900, 80.2500],
+    # Madurai
+    "Madurai City": [9.9252, 78.1198], "Tiruchirappalli Fort": [10.8050, 78.6856],
+    "Srirangam": [10.8616, 78.6900], "Dindigul Town": [10.3624, 77.9695],
+    "Theni": [10.0104, 77.4768], "Sivaganga": [10.0675, 78.3641],
+    "Ramanathapuram": [9.3639, 78.8395],
+    # Coimbatore
+    "Gandhipuram": [11.0168, 76.9558], "RS Puram": [11.0100, 76.9400],
+    "Peelamedu": [11.0239, 77.0086], "Singanallur": [10.9954, 77.0348],
+    "Saravanampatti": [11.0640, 77.0030], "Sulur": [11.0340, 77.1270],
+    "Tiruppur North": [11.1085, 77.3411], "Erode Town": [11.3410, 77.7172],
+    "Coimbatore East": [11.0060, 76.9780],
+    # Branch-level fallbacks
+    "HQ": [13.0827, 80.2707], "CNI": [13.0827, 80.2707],
+    "MDU": [9.9252, 78.1198], "CMB": [11.0168, 76.9558],
+}
+
+
+class CrimeMapDataView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cases = Case.objects.select_related("case_holding_officer").all()
+        result = []
+        for case in cases:
+            coords = PS_COORDINATES.get(case.ps_limit) or PS_COORDINATES.get(case.branch, [13.0, 80.0])
+            # Add slight random offset so overlapping pins don't hide each other
+            import random
+            lat = coords[0] + random.uniform(-0.008, 0.008)
+            lng = coords[1] + random.uniform(-0.008, 0.008)
+
+            result.append({
+                "id": str(case.id),
+                "crime_number": case.crime_number,
+                "section_of_law": case.section_of_law,
+                "ps_limit": case.ps_limit,
+                "branch": case.branch,
+                "current_stage": case.current_stage,
+                "complainant_name": case.complainant_name,
+                "accused_details": (case.accused_details or "")[:80],
+                "date_of_occurrence": str(case.date_of_occurrence),
+                "lat": lat,
+                "lng": lng,
+            })
+        return Response(result)
+
+
+# ── Accused Link Analysis ─────────────────────────────────────────
+class AccusedLinkAnalysisView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cases = Case.objects.all()
+        nodes = []
+        edges = []
+        name_to_cases = defaultdict(list)
+        case_nodes_added = set()
+
+        for case in cases:
+            if not case.accused_details:
+                continue
+
+            # Parse accused names from the text
+            accused_text = case.accused_details
+            # Split by common delimiters and clean
+            parts = re.split(r'[,;&\n\r]+', accused_text)
+            names = []
+            for p in parts:
+                # Remove alias text, ages, and extra info in parentheses
+                name = re.sub(r'\(.*?\)', '', p)
+                name = re.sub(r'alias\s+.*', '', name, flags=re.IGNORECASE)
+                name = re.sub(r'age\s*\d+', '', name, flags=re.IGNORECASE)
+                name = re.sub(r'\d+\s*(others|unknown)', '', name, flags=re.IGNORECASE)
+                name = name.strip().strip("'\"")
+                if len(name) > 2 and not name.lower().startswith("unknown"):
+                    names.append(name)
+
+            case_id_str = str(case.id)
+
+            if names and case_id_str not in case_nodes_added:
+                nodes.append({
+                    "id": case_id_str,
+                    "label": case.crime_number,
+                    "type": "case",
+                    "section": case.section_of_law,
+                    "stage": case.current_stage,
+                    "branch": case.branch,
+                })
+                case_nodes_added.add(case_id_str)
+
+            for name in names:
+                name_key = name.lower().strip()
+                name_to_cases[name_key].append({
+                    "case_id": case_id_str,
+                    "display_name": name,
+                })
+
+        # Build accused nodes and edges
+        accused_node_ids = set()
+        for name_key, appearances in name_to_cases.items():
+            accused_id = f"accused_{name_key}"
+            if accused_id not in accused_node_ids:
+                nodes.append({
+                    "id": accused_id,
+                    "label": appearances[0]["display_name"],
+                    "type": "accused",
+                    "case_count": len(appearances),
+                })
+                accused_node_ids.add(accused_id)
+
+            for app in appearances:
+                edges.append({
+                    "from": app["case_id"],
+                    "to": accused_id,
+                })
+
+        # Find accused-to-accused connections (appear in same case)
+        # This is implicit through shared case nodes
+
+        return Response({
+            "nodes": nodes,
+            "edges": edges,
+            "stats": {
+                "total_cases": len(case_nodes_added),
+                "total_accused": len(accused_node_ids),
+                "total_links": len(edges),
+                "multi_case_accused": sum(
+                    1 for appearances in name_to_cases.values() if len(appearances) > 1
+                ),
+            },
+        })
+

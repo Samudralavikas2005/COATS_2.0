@@ -9,11 +9,13 @@ import CaseLogs from "./pages/CaseLogs";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { startSessionTimeout, stopSessionTimeout } from "./utils/sessionTimeout";
 import LegalAssistant from "./pages/LegalAssistant";
+import CrimeMap from "./pages/CrimeMap";
+import LinkAnalysis from "./pages/LinkAnalysis";
+import { LanguageProvider } from "./i18n/LanguageContext";
 
 function App() {
   useEffect(() => {
     const role = localStorage.getItem("role");
-    // Only start session timeout if user is logged in
     if (role) {
       startSessionTimeout();
     }
@@ -21,68 +23,36 @@ function App() {
   }, []);
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
 
-        {/* Default — redirect based on role */}
-        <Route path="/" element={<RoleRedirect />} />
+          {/* Default — redirect based on role */}
+          <Route path="/" element={<RoleRedirect />} />
 
-        {/* Public */}
-        <Route path="/login" element={<Login />} />
+          {/* Public */}
+          <Route path="/login" element={<Login />} />
 
-        {/* Case Officer routes */}
-        <Route
-          path="/cases"
-          element={
-            <ProtectedRoute>
-              <Cases />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/cases/:id"
-          element={
-            <ProtectedRoute>
-              <CaseDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/create-case"
-          element={
-            <ProtectedRoute requiredRole="CASE">
-              <CreateCase />
-            </ProtectedRoute>
-          }
-        />
+          {/* Case Officer routes */}
+          <Route path="/cases" element={<ProtectedRoute><Cases /></ProtectedRoute>} />
+          <Route path="/cases/:id" element={<ProtectedRoute><CaseDetail /></ProtectedRoute>} />
+          <Route path="/create-case" element={<ProtectedRoute requiredRole="CASE"><CreateCase /></ProtectedRoute>} />
 
-        {/* Supervisor routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute requiredRole="SUPERVISOR">
-              <COATSDashboard />
-            </ProtectedRoute>
-          }
-        />
+          {/* Supervisor routes */}
+          <Route path="/dashboard" element={<ProtectedRoute requiredRole="SUPERVISOR"><COATSDashboard /></ProtectedRoute>} />
 
-        {/* Shared — both roles can view logs */}
-        <Route
-          path="/logs"
-          element={
-            <ProtectedRoute>
-              <CaseLogs />
-            </ProtectedRoute>
-          }
-        />
+          {/* Shared — both roles */}
+          <Route path="/logs" element={<ProtectedRoute><CaseLogs /></ProtectedRoute>} />
+          <Route path="/legal-assistant" element={<ProtectedRoute><LegalAssistant /></ProtectedRoute>} />
+          <Route path="/crime-map" element={<ProtectedRoute><CrimeMap /></ProtectedRoute>} />
+          <Route path="/link-analysis" element={<ProtectedRoute><LinkAnalysis /></ProtectedRoute>} />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-        
-        <Route path="/legal-assistant" element={<ProtectedRoute> <LegalAssistant /> </ProtectedRoute>} />
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
 
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </LanguageProvider>
   );
 }
 

@@ -523,6 +523,269 @@ function RecommendationsTab({ caseId, t, navigate }) {
   );
 }
 
+// ── Evidence Tab ──────────────────────────────────────────────────
+function EvidenceTab({ caseId, role, isClosed, t }) {
+  const [evidence, setEvidence] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [file, setFile] = useState(null);
+  const [desc, setDesc] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchEvidence = useCallback(() => {
+    const token = localStorage.getItem("access");
+    fetch(`${API_BASE}/api/cases/${caseId}/evidence/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => { setEvidence(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [caseId]);
+
+  useEffect(() => { fetchEvidence(); }, [fetchEvidence]);
+
+  const handleUpload = async () => {
+    if (!file) return setError("Please select a file to upload.");
+    setUploading(true); setError("");
+    const token = localStorage.getItem("access");
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("description", desc);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/cases/${caseId}/evidence/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed. Ensure you are a Case Officer.");
+      setFile(null); setDesc("");
+      document.getElementById("ev_file_input").value = "";
+      fetchEvidence();
+    } catch (err) { setError(err.message); }
+    finally { setUploading(false); }
+  };
+
+  const inp = { width: "100%", padding: "0.6rem 0.9rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 9, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", outline: "none" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted }}>
+          📁 Digital Evidence Vault — {evidence.length} files
+        </div>
+      </div>
+
+      {role === "CASE" && !isClosed && (
+        <div style={{ background: t.bgBase, border: `1px dashed ${t.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1.5rem" }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>Upload Evidence (Immutable)</div>
+          {error && <div style={{ color: t.red, fontSize: "0.75rem", fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>⚠️ {error}</div>}
+          
+          <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
+            <div style={{ flex: 1 }}>
+              <input type="file" id="ev_file_input" onChange={e => setFile(e.target.files[0])} style={{ ...inp, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", padding: "0.5rem" }} />
+            </div>
+            <div style={{ flex: 2 }}>
+              <input type="text" placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} style={inp} />
+            </div>
+            <Btn onClick={handleUpload} t={t} accent={t.purple} disabled={uploading}>
+              {uploading ? "Encrypting & Uploading…" : "⬆ Upload to Vault"}
+            </Btn>
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, marginTop: 8 }}>
+            Files are immediately hashed (SHA-256) and anchored to the Sepolia blockchain for tamper-proof verification.
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>Loading vault…</div>
+      ) : evidence.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "2.5rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>
+          <div style={{ fontSize: "2rem", marginBottom: 10, opacity: 0.3 }}>📁</div>
+          No evidence uploaded yet.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
+          {evidence.map(ev => (
+            <div key={ev.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.2rem", boxShadow: t.shadow, wordBreak: "break-all" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.purple }}>{ev.file_name}</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.purple}22`, color: t.purple, borderRadius: 4 }}>{ev.file_type}</span>
+              </div>
+              
+              {ev.description && <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textPrimary, marginBottom: 8 }}>{ev.description}</div>}
+              
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted, background: `${t.bgBase}88`, padding: "6px", borderRadius: 6, marginBottom: 8 }}>
+                <div style={{ color: t.accent }}>SHA-256 Hash</div>
+                {ev.file_hash}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, borderTop: `1px solid ${t.border}55`, paddingTop: 8 }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textSecond }}>
+                  By {ev.uploaded_by_username} · {(ev.file_size / 1024 / 1024).toFixed(2)} MB
+                </div>
+                {ev.blockchain_tx && (
+                  <a href={ev.blockchain_url} target="_blank" rel="noopener noreferrer"
+                    style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "2px 8px", textDecoration: "none" }}>
+                    ⛓ Blockchain Verified
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Witness Tab ───────────────────────────────────────────────────
+function WitnessTab({ caseId, role, isClosed, t }) {
+  const [witnesses, setWitnesses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: "", age: "", gender: "M", address: "", phone: "",
+    relationship: "", statement: "", is_hostile: false, is_section_164: false, protection_status: "NONE"
+  });
+
+  const fetchWitnesses = useCallback(() => {
+    const token = localStorage.getItem("access");
+    fetch(`${API_BASE}/api/cases/${caseId}/witnesses/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => { setWitnesses(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [caseId]);
+
+  useEffect(() => { fetchWitnesses(); }, [fetchWitnesses]);
+
+  const handleAdd = async () => {
+    if (!form.name || !form.statement) return setError("Name and Statement are required.");
+    setSaving(true); setError("");
+    const token = localStorage.getItem("access");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/cases/${caseId}/witnesses/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error("Failed to add witness. Ensure you are a Case Officer.");
+      setForm({ name: "", age: "", gender: "M", address: "", phone: "", relationship: "", statement: "", is_hostile: false, is_section_164: false, protection_status: "NONE" });
+      setShowForm(false);
+      fetchWitnesses();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const inp = { width: "100%", padding: "0.6rem 0.9rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 9, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", outline: "none" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted }}>
+          👥 Witness Management — {witnesses.length} records
+        </div>
+        {role === "CASE" && !isClosed && (
+          <Btn onClick={() => setShowForm(s => !s)} t={t} accent={t.yellow} small>
+            {showForm ? "✕ Cancel" : "+ Add Witness"}
+          </Btn>
+        )}
+      </div>
+
+      {showForm && (
+        <div style={{ background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1.25rem" }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>Register Witness Statement (Immutable)</div>
+          {error && <div style={{ color: t.red, fontSize: "0.75rem", fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>⚠️ {error}</div>}
+          
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+            <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={inp} />
+            <input type="number" placeholder="Age" value={form.age} onChange={e => setForm({...form, age: e.target.value})} style={inp} />
+            <select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} style={inp}>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+              <option value="O">Other</option>
+            </select>
+          </div>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
+            <input type="text" placeholder="Phone Number" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={inp} />
+            <input type="text" placeholder="Relationship to case/accused" value={form.relationship} onChange={e => setForm({...form, relationship: e.target.value})} style={inp} />
+          </div>
+
+          <div style={{ marginBottom: "0.75rem" }}>
+            <textarea placeholder="Witness Statement * (Cannot be edited once saved)" value={form.statement} onChange={e => setForm({...form, statement: e.target.value})} rows={4} style={{...inp, resize: "vertical"}} />
+          </div>
+
+          <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1.25rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", color: t.textPrimary }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.is_section_164} onChange={e => setForm({...form, is_section_164: e.target.checked})} />
+              Recorded under Sec 164 CrPC (Magistrate)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.is_hostile} onChange={e => setForm({...form, is_hostile: e.target.checked})} />
+              Turned Hostile
+            </label>
+          </div>
+
+          <Btn onClick={handleAdd} t={t} accent={t.yellow} disabled={saving}>
+            {saving ? "Anchoring to Blockchain…" : "✓ Save Immutable Statement"}
+          </Btn>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>Loading witnesses…</div>
+      ) : witnesses.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "2.5rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>
+          <div style={{ fontSize: "2rem", marginBottom: 10, opacity: 0.3 }}>👥</div>
+          No witnesses recorded yet.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {witnesses.map(w => (
+            <div key={w.id} style={{ background: t.bgCard, border: `1px solid ${w.is_hostile ? t.red : t.border}`, borderRadius: 12, padding: "1.2rem", boxShadow: t.shadow }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontFamily: "'Sora',sans-serif", fontSize: "1.05rem", fontWeight: 700, color: t.textPrimary }}>{w.name}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textSecondary }}>{w.age ? `${w.age} yrs` : "Age NA"} · {w.gender}</span>
+                  {w.is_section_164 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.accent}22`, color: t.accent, borderRadius: 4 }}>Sec 164 CrPC</span>}
+                  {w.is_hostile && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.red}22`, color: t.red, borderRadius: 4 }}>Hostile</span>}
+                </div>
+                {w.blockchain_tx && (
+                  <a href={w.blockchain_url} target="_blank" rel="noopener noreferrer"
+                    style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "2px 8px", textDecoration: "none" }}>
+                    ⛓ Blockchain Verified
+                  </a>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: "2rem", marginBottom: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
+                {w.phone && <div>📞 {w.phone}</div>}
+                {w.relationship && <div>🔗 Relation: {w.relationship}</div>}
+              </div>
+
+              <div style={{ background: t.bgBase, padding: "1rem", borderRadius: 8, fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", color: t.textPrimary, fontStyle: "italic", borderLeft: `3px solid ${w.is_hostile ? t.red : t.textMuted}`, lineHeight: 1.6 }}>
+                "{w.statement}"
+              </div>
+              
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, marginTop: 10, textAlign: "right" }}>
+                Recorded by {w.added_by_username} · {formatDate(w.added_at)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ── Main Component ────────────────────────────────────────────────
 function CaseDetail() {
   const getTheme = () => {
@@ -610,6 +873,8 @@ function CaseDetail() {
 
   const TABS = [
     { key: "details",  label: "📋 Case Details" },
+    { key: "evidence", label: "📁 Evidence Vault" },
+    { key: "witnesses",label: "👥 Witnesses" },
     { key: "progress", label: "📊 Progress" },
     { key: "custody",  label: `🔗 Custody (${custody.length})` },
     { key: "recommendations", label: "🧠 Related Cases" },
@@ -751,6 +1016,20 @@ function CaseDetail() {
                   </div>
                 </div>
               </>
+            )}
+
+            {/* ── EVIDENCE TAB ── */}
+            {activeTab === "evidence" && (
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
+                <EvidenceTab caseId={id} role={role} isClosed={isClosed} t={t} />
+              </div>
+            )}
+
+            {/* ── WITNESS TAB ── */}
+            {activeTab === "witnesses" && (
+              <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
+                <WitnessTab caseId={id} role={role} isClosed={isClosed} t={t} />
+              </div>
             )}
 
             {/* ── PROGRESS TAB ── */}

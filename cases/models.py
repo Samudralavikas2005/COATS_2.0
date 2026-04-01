@@ -209,3 +209,103 @@ class CaseHandover(models.Model):
 
     def __str__(self):
         return f"{self.crime_number} | {self.from_officer_username} → {self.to_officer_username}"
+
+
+class Evidence(models.Model):
+    """
+    Digital Evidence Vault — tamper-proof file storage per case.
+    Every uploaded file is SHA-256 hashed and anchored to the blockchain.
+    """
+    FILE_TYPE_CHOICES = (
+        ('IMAGE',    'Image'),
+        ('VIDEO',    'Video'),
+        ('PDF',      'PDF Document'),
+        ('DOCUMENT', 'Document'),
+        ('AUDIO',    'Audio'),
+        ('OTHER',    'Other'),
+    )
+
+    case         = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="evidence_files")
+    file         = models.FileField(upload_to='evidence/%Y/%m/')
+    file_name    = models.CharField(max_length=255)
+    file_type    = models.CharField(max_length=15, choices=FILE_TYPE_CHOICES, default='OTHER')
+    file_size    = models.IntegerField(default=0)           # bytes
+    file_hash    = models.CharField(max_length=64)           # SHA-256
+    description  = models.TextField(blank=True, default="")
+    uploaded_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True,
+        on_delete=models.SET_NULL, related_name="uploaded_evidence"
+    )
+    uploaded_at  = models.DateTimeField(auto_now_add=True)
+    ip_address   = models.GenericIPAddressField(null=True, blank=True)
+
+    # ── Blockchain anchor fields ───────────────────────────────────
+    blockchain_tx    = models.CharField(max_length=200, blank=True, default="")
+    blockchain_hash  = models.CharField(max_length=100, blank=True, default="")
+    blockchain_block = models.IntegerField(null=True, blank=True)
+    blockchain_url   = models.URLField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise PermissionError("Evidence records are immutable and cannot be edited.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError("Evidence files cannot be deleted.")
+
+    def __str__(self):
+        return f"{self.case.crime_number} | {self.file_name} ({self.file_hash[:12]}…)"
+
+
+class Witness(models.Model):
+    """
+    Witness / Person of Interest management per case.
+    Statements, once recorded, are immutable for court admissibility.
+    """
+    GENDER_CHOICES = (
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+    )
+    PROTECTION_CHOICES = (
+        ('NONE',      'None'),
+        ('REQUESTED', 'Requested'),
+        ('ACTIVE',    'Active'),
+    )
+
+    case          = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="witnesses")
+    name          = models.CharField(max_length=200)
+    age           = models.IntegerField(null=True, blank=True)
+    gender        = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, default="")
+    address       = models.TextField(blank=True, default="")
+    phone         = models.CharField(max_length=20, blank=True, default="")
+    relationship  = models.CharField(max_length=100, blank=True, default="")
+    statement     = models.TextField(blank=True, default="")
+    is_hostile    = models.BooleanField(default=False)
+    is_section_164 = models.BooleanField(default=False)
+    protection_status = models.CharField(
+        max_length=15, choices=PROTECTION_CHOICES, default='NONE'
+    )
+    added_by      = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True,
+        on_delete=models.SET_NULL, related_name="added_witnesses"
+    )
+    added_at      = models.DateTimeField(auto_now_add=True)
+
+    # ── Blockchain anchor fields ───────────────────────────────────
+    blockchain_tx    = models.CharField(max_length=200, blank=True, default="")
+    blockchain_hash  = models.CharField(max_length=100, blank=True, default="")
+    blockchain_block = models.IntegerField(null=True, blank=True)
+    blockchain_url   = models.URLField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-added_at"]
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError("Witness records cannot be deleted.")
+
+    def __str__(self):
+        return f"{self.case.crime_number} | {self.name} ({'Hostile' if self.is_hostile else 'Cooperative'})"
