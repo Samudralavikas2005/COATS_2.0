@@ -9,6 +9,7 @@ import CaseLogs from "./pages/CaseLogs";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { startSessionTimeout, stopSessionTimeout } from "./utils/sessionTimeout";
 import LegalAssistant from "./pages/LegalAssistant";
+import CrimeMap from "./pages/CrimeMap";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import AdminSecurity from "./pages/AdminSecurity";
 
