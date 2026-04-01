@@ -10,7 +10,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { startSessionTimeout, stopSessionTimeout } from "./utils/sessionTimeout";
 import LegalAssistant from "./pages/LegalAssistant";
 import CrimeMap from "./pages/CrimeMap";
-import LinkAnalysis from "./pages/LinkAnalysis";
 import { LanguageProvider } from "./i18n/LanguageContext";
 
 function App() {
@@ -45,7 +44,6 @@ function App() {
           <Route path="/logs" element={<ProtectedRoute><CaseLogs /></ProtectedRoute>} />
           <Route path="/legal-assistant" element={<ProtectedRoute><LegalAssistant /></ProtectedRoute>} />
           <Route path="/crime-map" element={<ProtectedRoute><CrimeMap /></ProtectedRoute>} />
-          <Route path="/link-analysis" element={<ProtectedRoute><LinkAnalysis /></ProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/login" replace />} />

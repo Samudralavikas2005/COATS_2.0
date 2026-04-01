@@ -18,7 +18,6 @@ from .views import (
     EvidenceListCreateView,
     WitnessListCreateView,
     CrimeMapDataView,
-    AccusedLinkAnalysisView,
 )
 from .dashboard_views import (
     DashboardKPIView,
@@ -55,7 +54,6 @@ urlpatterns = [
     path("dashboard/recent-cases/",             DashboardRecentCasesView.as_view()),
     # ── Intelligence ──────────────────────────────────────────────
     path("intelligence/crime-map/",             CrimeMapDataView.as_view()),
-    path("intelligence/link-analysis/",         AccusedLinkAnalysisView.as_view()),
     # ── AI ────────────────────────────────────────────────────────
     path("ai/legal-assistant/",                 LegalAssistantView.as_view()),
     path("ai/legal-assistant/file/",            LegalAssistantFileView.as_view()),

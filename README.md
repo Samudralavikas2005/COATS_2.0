@@ -23,7 +23,6 @@ A secure, full-stack case management system built for law enforcement agencies t
 - 📁 Digital Evidence Vault — cryptographically hashed (SHA-256) file storage anchored to blockchain
 - 👥 Witness Management — structured system for recording statements, including Sec 164 CrPC flags
 - 🗺️ Crime Hotspot Map — interactive Live Map visualizing cases across Tamil Nadu branches
-- 🕸️ Accused Link Analysis — physics-based force-directed Network Graph to visualize repeat offenders
 - 🌐 Multi-Language System (i18n) — dynamic translation support (English, Tamil, Hindi)
 - ⛓️ Blockchain anchoring — every log, evidence, and witness statement hashed to Sepolia testnet
 - 🔒 Mandatory reason enforcement for all case updates

@@ -314,10 +314,6 @@ export default function COATSDashboard() {
               🗺️ Crime Map
             </HeaderBtn>
 
-            <HeaderBtn onClick={() => navigate("/link-analysis")} t={t} accent={t.yellow}>
-              🕸️ Link Analysis
-            </HeaderBtn>
-
             <HeaderBtn onClick={handleLogout} t={t} accent={t.red} outline>
               Logout
             </HeaderBtn>
