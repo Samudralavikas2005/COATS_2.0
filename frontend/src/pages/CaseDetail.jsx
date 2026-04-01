@@ -610,7 +610,9 @@ function EvidenceTab({ caseId, role, isClosed, t }) {
           {evidence.map(ev => (
             <div key={ev.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.2rem", boxShadow: t.shadow, wordBreak: "break-all" }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.purple }}>{ev.file_name}</span>
+                <a href={ev.file} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.purple, textDecoration: "underline", textDecorationStyle: "dashed", textUnderlineOffset: 4 }}>
+                  {ev.file_name} ↗
+                </a>
                 <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.purple}22`, color: t.purple, borderRadius: 4 }}>{ev.file_type}</span>
               </div>
               
