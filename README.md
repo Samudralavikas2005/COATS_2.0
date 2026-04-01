@@ -2,7 +2,7 @@
 
 A secure, full-stack case management system built for law enforcement agencies to manage the complete lifecycle of criminal cases — from registration to court closure — with blockchain-anchored audit trails for tamper-proof evidence integrity.
 
----
+--- 
 
 ## 🚀 Features
 
