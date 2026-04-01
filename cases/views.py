@@ -1077,10 +1077,15 @@ class InsiderThreatView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != 'SUPERVISOR':
-            raise PermissionDenied("Only Supervisors can access the threat analysis dashboard.")
+        if request.user.role != 'SUPERVISOR' and not request.user.is_superuser:
+            raise PermissionDenied("Unauthorized access to threat analysis.")
             
         users = User.objects.all()
+        # SECURITY POLICY: Standard Supervisors only monitor Case Officers.
+        # Only Master Admins (is_superuser) can monitor other Supervisors.
+        if not request.user.is_superuser:
+            users = users.filter(role='CASE')
+            
         threats = []
         today = timezone.now()
         yesterday = today - timezone.timedelta(days=1)
