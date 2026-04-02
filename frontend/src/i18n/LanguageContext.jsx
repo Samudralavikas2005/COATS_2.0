@@ -464,7 +464,7 @@ export function LanguageProvider({ children }) {
   }, [lang]);
 
   return (
-    <LanguageContext.Provider value={{ lang, switchLang, tr, languages: LANGUAGES }}>
+    <LanguageContext.Provider value={{ lang, setLang: switchLang, tr, languages: LANGUAGES }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -477,13 +477,13 @@ export function useLanguage() {
 }
 
 export function LanguageSwitcher({ t: theme }) {
-  const { lang, switchLang, languages } = useLanguage();
+  const { lang, setLang, languages } = useLanguage();
   return (
     <div style={{ display: "flex", gap: 2, background: theme.bgCard || "#141927", border: `1px solid ${theme.border || "#222d42"}`, borderRadius: 8, padding: 2 }}>
       {languages.map(l => (
         <button
           key={l.code}
-          onClick={() => switchLang(l.code)}
+          onClick={() => setLang(l.code)}
           style={{
             fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", fontWeight: 600,
             cursor: "pointer", borderRadius: 6, padding: "4px 8px", border: "none",

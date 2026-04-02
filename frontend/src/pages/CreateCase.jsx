@@ -238,7 +238,7 @@ function CreateCase() {
   );
 }
 
-function BackBtn({ onClick, t }) {
+function BackBtn({ onClick, t, tr }) {
   const [hov, setHov] = useState(false);
   return (
     <button type="button" onClick={onClick}
@@ -249,7 +249,7 @@ function BackBtn({ onClick, t }) {
   );
 }
 
-function SubmitBtn({ submitting, accent }) {
+function SubmitBtn({ submitting, accent, tr }) {
   const [hov, setHov] = useState(false);
   return (
     <button type="submit" disabled={submitting}
