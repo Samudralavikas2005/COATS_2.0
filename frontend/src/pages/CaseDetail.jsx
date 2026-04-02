@@ -775,35 +775,6 @@ function WitnessTab({ caseId, role, t, tr, lang }) {
     </div>
   );
 }
-                {w.blockchain_tx && (
-                  <a href={w.blockchain_url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "2px 8px", textDecoration: "none" }}>
-                    ⛓ Blockchain Verified
-                  </a>
-                )}
-              </div>
-
-              <div style={{ display: "flex", gap: "2rem", marginBottom: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
-                {w.phone && <div>📞 {w.phone}</div>}
-                {w.relationship && <div>🔗 Relation: {w.relationship}</div>}
-              </div>
-
-              <div style={{ background: t.bgBase, padding: "1rem", borderRadius: 8, fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", color: t.textPrimary, fontStyle: "italic", borderLeft: `3px solid ${w.is_hostile ? t.red : t.textMuted}`, lineHeight: 1.6 }}>
-                "{w.statement}"
-              </div>
-              
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, marginTop: 10, textAlign: "right" }}>
-                Recorded by {w.added_by_username} · {formatDate(w.added_at)}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 // ── Main Component ────────────────────────────────────────────────
 function CaseDetail() {
   const getTheme = () => {
