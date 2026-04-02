@@ -110,30 +110,50 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         else:
             BRANCH_CITY_MAP = {'HQ': 'Chennai', 'CNI': 'Chennai', 'MDU': 'Madurai', 'CMB': 'Coimbatore'}
             expected_city = BRANCH_CITY_MAP.get(user.branch)
+            
             if expected_city:
-                try:
-                    geo_url = 'http://ip-api.com/json/' if ip in ['127.0.0.1', 'localhost', '::1'] else f'http://ip-api.com/json/{ip}'
-                    geo_res = requests.get(geo_url, timeout=5).json()
-                    user_city = geo_res.get('city')
-                    
-                    if user_city and user_city != expected_city:
+                # 🛡️ Bypass check for local development
+                from django.conf import settings
+                if settings.DEBUG:
+                    print(f"DEBUG: Skipping geolocation MFA for {username} (DEBUG=True)")
+                else:
+                    try:
+                        geo_url = 'http://ip-api.com/json/' if ip in ['127.0.0.1', 'localhost', '::1'] else f'http://ip-api.com/json/{ip}'
+                        geo_res = requests.get(geo_url, timeout=5).json()
+                        user_city = geo_res.get('city', '')
+                        
+                        # Case insensitive and suburb aware matching for Chennai
+                        CHENNAI_SUBURBS = ["chennai", "madipakkam", "ambattur", "guindy", "taramani", "velachery", "adyar", "perungudi"]
+                        is_match = False
+                        u_city_lower = user_city.lower()
+                        e_city_lower = expected_city.lower()
+
+                        if e_city_lower == "chennai":
+                            is_match = any(sub in u_city_lower for sub in CHENNAI_SUBURBS)
+                        else:
+                            is_match = u_city_lower == e_city_lower
+
+                        if user_city and not is_match:
+                            print(f"WARN: Location mismatch for {username}. Found: {user_city}, Expected: {expected_city}")
+                            return Response({
+                                "mfa_required": True,
+                                "questions": [
+                                    user.security_question_1 or "What is your favorite color?",
+                                    user.security_question_2 or "What is your pet name?"
+                                ],
+                                "username": user.username
+                            }, status=status.HTTP_200_OK)
+                    except Exception as e:
+                        print(f"WARN: Geo-API failure: {str(e)}")
+                        # Fail-safe: trigger MFA if location cannot be verified
                         return Response({
                             "mfa_required": True,
                             "questions": [
-                                user.security_question_1 or "What is your mother's maiden name?",
-                                user.security_question_2 or "What was the name of your first pet?"
+                                user.security_question_1 or "What is your favorite color?",
+                                user.security_question_2 or "What is your pet name?"
                             ],
                             "username": user.username
                         }, status=status.HTTP_200_OK)
-                except Exception:
-                    return Response({
-                        "mfa_required": True,
-                        "questions": [
-                            user.security_question_1 or "What is your mother's maiden name?",
-                            user.security_question_2 or "What was the name of your first pet?"
-                        ],
-                        "username": user.username
-                    }, status=status.HTTP_200_OK)
 
         # ── Step 4: Final Success & Tokens ───────────────────────────────
         log = LoginAuditLog.objects.create(
