@@ -123,7 +123,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                         user_city = geo_res.get('city', '')
                         
                         # Case insensitive and suburb aware matching for Chennai
-                        CHENNAI_SUBURBS = ["chennai", "madipakkam", "ambattur", "guindy", "taramani", "velachery", "adyar", "perungudi"]
+                        CHENNAI_SUBURBS = ["chennai", "madipakkam", "ambattur", "guindy", "taramani", "velachery", "adyar", "perungudi", "vengal", "thiruvallur"]
                         is_match = False
                         u_city_lower = user_city.lower()
                         e_city_lower = expected_city.lower()
