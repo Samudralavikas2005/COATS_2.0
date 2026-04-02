@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../i18n/LanguageContext";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -24,8 +25,8 @@ const STAGE_COLORS = {
   UI: "#f5c842", PT: "#a78bfa", HC: "#fb923c", SC: "#f87171", CC: "#34d399",
 };
 const STAGE_LABELS = {
-  UI: "Under Investigation", PT: "Pending Trial", HC: "High Court",
-  SC: "Supreme Court", CC: "Case Closed",
+  UI: "underInvestigation", PT: "pendingTrial", HC: "pendingHC",
+  SC: "pendingSC", CC: "closed",
 };
 
 export default function CrimeMap() {
@@ -34,6 +35,7 @@ export default function CrimeMap() {
   };
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
+  const { lang, tr } = useLanguage();
   const [theme, setTheme] = useState(getTheme);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,15 +90,15 @@ export default function CrimeMap() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1.5rem" }}>
           <div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>🚔 COATS · Crime Intelligence</div>
-            <h1 style={{ fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.025em" }}>🗺️ Crime Hotspot Map</h1>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>🚔 COATS · {tr("crimeIntel")}</div>
+            <h1 style={{ fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.025em" }}>🗺️ {tr("crimeMap")}</h1>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textMuted, marginTop: 4 }}>
-              {filtered.length} cases plotted across Tamil Nadu
+              {filtered.length} {tr("casesPlotted")}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>{isDark ? "Dark" : "Light"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>{isDark ? tr("dark") : tr("light")}</span>
               <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer" }}>
                 <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
                   {isDark ? "🌙" : "☀️"}
@@ -105,7 +107,7 @@ export default function CrimeMap() {
             </div>
             <button onClick={() => navigate(role === "SUPERVISOR" ? "/dashboard" : "/cases")}
               style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", borderRadius: 8, padding: "6px 14px", background: "transparent", border: `1px solid ${t.border}`, color: t.textSecond }}>
-              ← Back
+              ← {tr("back")}
             </button>
           </div>
         </div>
@@ -114,20 +116,20 @@ export default function CrimeMap() {
         <div style={{ display: "flex", gap: 12, marginBottom: "1rem", flexWrap: "wrap" }}>
           <select value={filter.branch} onChange={e => setFilter(f => ({ ...f, branch: e.target.value }))}
             style={{ padding: "6px 12px", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textPrimary, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", cursor: "pointer" }}>
-            <option value="">All Branches</option>
+            <option value="">{tr("allBranches")}</option>
             {branches.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
           <select value={filter.stage} onChange={e => setFilter(f => ({ ...f, stage: e.target.value }))}
             style={{ padding: "6px 12px", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textPrimary, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", cursor: "pointer" }}>
-            <option value="">All Stages</option>
-            {Object.entries(STAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <option value="">{tr("allStages")}</option>
+            {Object.entries(STAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{tr(v)}</option>)}
           </select>
           {/* Legend */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginLeft: "auto" }}>
             {Object.entries(STAGE_COLORS).map(([k, color]) => (
               <div key={k} style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted }}>
                 <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, display: "inline-block" }} />
-                {k}
+                {tr(STAGE_LABELS[k]) || k}
               </div>
             ))}
           </div>
@@ -135,7 +137,7 @@ export default function CrimeMap() {
 
         {/* Map */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "4rem", color: t.textMuted }}>Loading map data…</div>
+          <div style={{ textAlign: "center", padding: "4rem", color: t.textMuted }}>{tr("loadingMap")}</div>
         ) : (
           <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${t.border}`, boxShadow: t.shadow }}>
             <MapContainer center={[11.1271, 78.6569]} zoom={7} style={{ height: "70vh", width: "100%" }} scrollWheelZoom={true}>
@@ -159,12 +161,12 @@ export default function CrimeMap() {
                       <div style={{ fontSize: "0.75rem", color: "#777", marginBottom: 2 }}>📅 {c.date_of_occurrence}</div>
                       {c.accused_details && <div style={{ fontSize: "0.72rem", color: "#888", marginBottom: 4 }}>👤 {c.accused_details}</div>}
                       <div style={{ display: "inline-block", padding: "2px 8px", borderRadius: 12, fontSize: "0.68rem", fontWeight: 600, background: `${STAGE_COLORS[c.current_stage]}22`, color: STAGE_COLORS[c.current_stage], border: `1px solid ${STAGE_COLORS[c.current_stage]}44` }}>
-                        {STAGE_LABELS[c.current_stage] || c.current_stage}
+                        {tr(STAGE_LABELS[c.current_stage]) || c.current_stage}
                       </div>
                       <div style={{ marginTop: 6 }}>
                         <button onClick={() => navigate(`/cases/${c.id}`)}
                           style={{ fontSize: "0.7rem", padding: "3px 10px", borderRadius: 6, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer" }}>
-                          View Case →
+                          {tr("viewCase")} →
                         </button>
                       </div>
                     </div>

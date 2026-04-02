@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -41,6 +41,7 @@ function CreateCase() {
 
   const navigate = useNavigate();
   const branch   = localStorage.getItem("branch");
+  const { lang, tr } = useLanguage();
 
   const [theme, setTheme]         = useState(getTheme);
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +72,7 @@ function CreateCase() {
     setSubmitting(true);
 
     const token = localStorage.getItem("access");
-    if (!token) { setError("Not logged in"); setSubmitting(false); return; }
+    if (!token) { setError(tr("notLoggedIn")); setSubmitting(false); return; }
 
     try {
       const res = await fetch(`${API_BASE}/api/cases/`, {
@@ -85,7 +86,7 @@ function CreateCase() {
         throw new Error(
           typeof data === "object"
             ? Object.values(data).flat().join(", ")
-            : "Failed to create case"
+            : tr("caseCreateFail")
         );
       }
       navigate("/cases");
@@ -125,15 +126,15 @@ function CreateCase() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
           <div>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>
-              🚔 COATS · New Case
+              🚔 COATS · {tr("newCase")}
             </div>
             <h1 style={{ fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.025em" }}>
-              File a New Case
+              {tr("fileNewCase")}
             </h1>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted, marginTop: 5 }}>
-              Branch: <span style={{ color: t.accent }}>{branch}</span>
-              {" · "}Stage locked to{" "}
-              <span style={{ color: t.yellow }}>Under Investigation</span>
+              {tr("branch")}: <span style={{ color: t.accent }}>{branch}</span>
+              {" · "}{tr("stageLocked")} {" "}
+              <span style={{ color: t.yellow }}>{tr("underInvestigation")}</span>
             </div>
           </div>
 
@@ -141,7 +142,7 @@ function CreateCase() {
             {/* Theme toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
-                {isDark ? "Dark" : "Light"}
+                {isDark ? tr("dark") : tr("light")}
               </span>
               <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer", transition: "background .25s" }}>
                 <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
@@ -150,7 +151,7 @@ function CreateCase() {
               </div>
             </div>
             {/* ✅ Single Back button — only in header */}
-            <BackBtn onClick={() => navigate("/cases")} t={t} />
+            <BackBtn onClick={() => navigate("/cases")} t={t} tr={tr} />
           </div>
         </div>
 
@@ -168,34 +169,34 @@ function CreateCase() {
             {/* LEFT — Case Identifiers */}
             <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>
-                Case Identifiers
+                {tr("caseIdentifiers")}
               </div>
 
-              <Field label="PS Limit" required>
+              <Field label={tr("psLimit")} required>
                 <input name="ps_limit" placeholder="e.g. Coimbatore North" onChange={handleChange} required style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
               </Field>
 
-              <Field label="Crime Number" required>
+              <Field label={tr("crimeNo")} required>
                 <input name="crime_number" placeholder="e.g. CR/001/2025" onChange={handleChange} required style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
               </Field>
 
-              <Field label="Section of Law (IPC)" required>
+              <Field label={tr("sectionLaw")} required>
                 <input name="section_of_law" placeholder="e.g. IPC 302, IPC 376" onChange={handleChange} required style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
               </Field>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                <Field label="Date of Occurrence" required>
+                <Field label={tr("dateOccur")} required>
                   <input type="date" name="date_of_occurrence" onChange={handleChange} required style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
                 </Field>
-                <Field label="Date of Registration" required>
+                <Field label={tr("dateReg")} required>
                   <input type="date" name="date_of_registration" onChange={handleChange} required style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
                 </Field>
               </div>
 
-              <Field label="Current Stage">
+              <Field label={tr("currentStage")}>
                 <div style={{ ...inputStyle, background: t.bgCardHover, color: t.yellow, border: `1px solid ${t.yellow}33`, display: "flex", alignItems: "center", gap: 8, cursor: "not-allowed" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: t.yellow, display: "inline-block" }} />
-                  Under Investigation
+                  {tr("underInvestigation")}
                   <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted }}>locked</span>
                 </div>
               </Field>
@@ -204,22 +205,22 @@ function CreateCase() {
             {/* RIGHT — Parties & Details */}
             <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>
-                Parties & Case Details
+                {tr("partiesDetails")}
               </div>
 
-              <Field label="Complainant Name">
+              <Field label={tr("complainantName")}>
                 <input name="complainant_name" placeholder="Full name of complainant" onChange={handleChange} style={inputStyle} onFocus={focusIn} onBlur={focusOut} />
               </Field>
 
-              <Field label="Accused Details">
+              <Field label={tr("accusedDetails")}>
                 <textarea name="accused_details" placeholder="Name, age, address of accused…" onChange={handleChange} rows={3} style={{ ...inputStyle, lineHeight: 1.6 }} onFocus={focusIn} onBlur={focusOut} />
               </Field>
 
-              <Field label="Gist of Case">
+              <Field label={tr("gistOfCase")}>
                 <textarea name="gist_of_case" placeholder="Brief summary of the incident…" onChange={handleChange} rows={3} style={{ ...inputStyle, lineHeight: 1.6 }} onFocus={focusIn} onBlur={focusOut} />
               </Field>
 
-              <Field label="Action to be Taken">
+              <Field label={tr("actionToBeTaken")}>
                 <textarea name="action_to_be_taken" placeholder="Immediate actions planned…" onChange={handleChange} rows={3} style={{ ...inputStyle, lineHeight: 1.6 }} onFocus={focusIn} onBlur={focusOut} />
               </Field>
             </div>
@@ -227,7 +228,7 @@ function CreateCase() {
 
           {/* ── SUBMIT ROW — only Submit button, Back is in header ── */}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem" }}>
-            <SubmitBtn submitting={submitting} accent={t.green} />
+            <SubmitBtn submitting={submitting} accent={t.green} tr={tr} />
           </div>
         </form>
 
@@ -242,7 +243,7 @@ function BackBtn({ onClick, t }) {
     <button type="button" onClick={onClick}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", borderRadius: 8, padding: "6px 14px", transition: "all .2s", background: "transparent", border: `1px solid ${t.border}`, color: hov ? t.textPrimary : t.textSecond }}>
-      ← Back to Cases
+      ← {tr("backToCases")}
     </button>
   );
 }
@@ -253,7 +254,7 @@ function SubmitBtn({ submitting, accent }) {
     <button type="submit" disabled={submitting}
       onMouseEnter={() => !submitting && setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", borderRadius: 8, padding: "10px 28px", transition: "all .2s", opacity: submitting ? 0.6 : 1, background: hov && !submitting ? accent : `${accent}cc`, border: "none", color: "#fff", boxShadow: hov && !submitting ? `0 6px 20px ${accent}44` : "none", transform: hov && !submitting ? "translateY(-1px)" : "translateY(0)" }}>
-      {submitting ? "Filing…" : "✓ File Case"}
+      {submitting ? tr("filing") : "✓ " + tr("fileCase")}
     </button>
   );
 }

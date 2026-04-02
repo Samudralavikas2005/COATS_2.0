@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -22,25 +22,25 @@ const THEMES = {
 };
 
 const STAGE = {
-  UI: { label: "Under Investigation", color: "#f5c842" },
-  PT: { label: "Pending Trial", color: "#a78bfa" },
-  HC: { label: "Pending before HC", color: "#fb923c" },
-  SC: { label: "Pending before SC", color: "#f87171" },
-  CC: { label: "Closed", color: "#34d399" },
+  UI: { labelKey: "underInvestigation", color: "#f5c842" },
+  PT: { labelKey: "pendingTrial", color: "#a78bfa" },
+  HC: { labelKey: "pendingHC", color: "#fb923c" },
+  SC: { labelKey: "pendingSC", color: "#f87171" },
+  CC: { labelKey: "closed", color: "#34d399" },
 };
 
 const FIELD_META = {
-  current_stage: { label: "Stage Change", icon: "🔄" },
-  action_to_be_taken: { label: "Action Updated", icon: "📝" },
-  section_of_law: { label: "IPC Section Edited", icon: "⚖️" },
-  complainant_name: { label: "Complainant Edited", icon: "👤" },
-  accused_details: { label: "Accused Edited", icon: "🔎" },
-  gist_of_case: { label: "Case Gist Edited", icon: "📄" },
-  ps_limit: { label: "PS Limit Changed", icon: "📍" },
+  current_stage: { labelKey: "stageChanged", icon: "🔄" },
+  action_to_be_taken: { labelKey: "actionUpdated", icon: "📝" },
+  section_of_law: { labelKey: "sectionLaw", icon: "⚖️" },
+  complainant_name: { labelKey: "complainantName", icon: "👤" },
+  accused_details: { labelKey: "accusedDetails", icon: "🔎" },
+  gist_of_case: { labelKey: "gistOfCase", icon: "📄" },
+  ps_limit: { labelKey: "psLimit", icon: "📍" },
 };
 
-function StageBadge({ code }) {
-  const s = STAGE[code] || { label: code, color: "#8896b3" };
+function StageBadge({ code, tr }) {
+  const s = STAGE[code] || { labelKey: code, color: "#8896b3" };
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -52,13 +52,13 @@ function StageBadge({ code }) {
         width: 5, height: 5, borderRadius: "50%", background: s.color,
         display: "inline-block",
       }} />
-      {s.label}
+      {tr(s.labelKey) || code}
     </span>
   );
 }
 
 // ── Blockchain Badge ──────────────────────────────────────────────
-function BlockchainBadge({ tx, url }) {
+function BlockchainBadge({ tx, url, tr }) {
   if (tx) {
     return (
       <a
@@ -76,7 +76,7 @@ function BlockchainBadge({ tx, url }) {
         }}
         title={`TX: ${tx}`}
       >
-        ⛓ Verified
+        ⛓ {tr("verified")}
       </a>
     );
   }
@@ -89,7 +89,7 @@ function BlockchainBadge({ tx, url }) {
       background: "#7b8db015", color: "#7b8db0",
       border: "1px solid #7b8db033",
     }}>
-      ⏳ Pending
+      ⏳ {tr("pending")}
     </span>
   );
 }
@@ -118,9 +118,10 @@ function HeaderBtn({ children, onClick, t, accent, outline = false }) {
 function LogRow({ log, t, last, navigate, index }) {
   const [expanded, setExpanded] = useState(false);
   const [hov, setHov] = useState(false);
-  const meta = FIELD_META[log.field_changed] || { label: log.field_changed, icon: "✏️" };
+  const meta = FIELD_META[log.field_changed] || { labelKey: log.field_changed, icon: "✏️" };
   const isStage = log.field_changed === "current_stage";
   const timeAgo = getTimeAgo(log.timestamp);
+  const { tr }  = useLanguage();
 
   return (
     <div style={{
@@ -146,7 +147,7 @@ function LogRow({ log, t, last, navigate, index }) {
         <div style={{ fontSize: "1rem", textAlign: "center" }}>{meta.icon}</div>
         <div>
           <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.82rem", fontWeight: 600, color: t.textPrimary }}>
-            {meta.label}
+            {tr(meta.labelKey) || meta.labelKey}
           </div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted, marginTop: 2 }}>
             {log.crime_number}
@@ -167,16 +168,16 @@ function LogRow({ log, t, last, navigate, index }) {
               {log.updated_by}
             </div>
             <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.65rem", color: t.textMuted }}>
-              Case Officer
+              {tr("caseOfficer")}
             </div>
           </div>
         </div>
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem" }}>
           {isStage ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <StageBadge code={log.old_value} />
+              <StageBadge code={log.old_value} tr={tr} />
               <span style={{ color: t.textMuted, fontSize: "0.65rem", paddingLeft: 4 }}>↓</span>
-              <StageBadge code={log.new_value} />
+              <StageBadge code={log.new_value} tr={tr} />
             </div>
           ) : (
             <div style={{ color: t.textMuted }}>
@@ -203,7 +204,7 @@ function LogRow({ log, t, last, navigate, index }) {
         </div>
         {/* Blockchain Badge */}
         <div>
-          <BlockchainBadge tx={log.blockchain_tx} url={log.blockchain_url} />
+          <BlockchainBadge tx={log.blockchain_tx} url={log.blockchain_url} tr={tr} />
         </div>
         <div style={{
           color: t.textMuted, fontSize: "0.75rem",
@@ -233,7 +234,7 @@ function LogRow({ log, t, last, navigate, index }) {
               color: t.textMuted,
               marginBottom: 6
             }}>
-              Previous Value
+              {tr("prevValue")}
             </div>
             <div style={{
               fontFamily: "'Sora',sans-serif",
@@ -258,7 +259,7 @@ function LogRow({ log, t, last, navigate, index }) {
               color: t.textMuted,
               marginBottom: 6
             }}>
-              New Value
+              {tr("newValue")}
             </div>
             <div style={{
               fontFamily: "'Sora',sans-serif",
@@ -298,7 +299,7 @@ function LogRow({ log, t, last, navigate, index }) {
                   color: t.textMuted,
                   marginBottom: 2
                 }}>
-                  {label}
+                  {tr(label === "Crime No." ? "crimeNo" : label === "Updated by" ? "recordedBy" : label === "Timestamp" ? "time" : "branch")}
                 </div>
                 <div style={{
                   fontFamily: "'JetBrains Mono',monospace",
@@ -330,7 +331,7 @@ function LogRow({ log, t, last, navigate, index }) {
                     color: "#34d399",
                     marginBottom: 2
                   }}>
-                    ⛓ Anchored on Sepolia
+                    ⛓ {tr("anchoredOn")}
                   </div>
                   <div style={{
                     fontFamily: "'JetBrains Mono',monospace",
@@ -338,7 +339,7 @@ function LogRow({ log, t, last, navigate, index }) {
                     color: t.textMuted,
                     marginBottom: 4
                   }}>
-                    Block: #{log.blockchain_block || "—"}
+                    {tr("block")}: #{log.blockchain_block || "—"}
                   </div>
                   <a
                     href={log.blockchain_url}
@@ -355,7 +356,7 @@ function LogRow({ log, t, last, navigate, index }) {
                       padding: "2px 8px"
                     }}
                   >
-                    View on Etherscan →
+                    {tr("viewOnEtherscan")} →
                   </a>
                 </div>
               ) : (
@@ -364,7 +365,7 @@ function LogRow({ log, t, last, navigate, index }) {
                   fontSize: "0.68rem",
                   color: t.textMuted
                 }}>
-                  ⏳ Anchoring pending
+                  ⏳ {tr("anchoringPending")}
                 </div>
               )}
             </div>
@@ -375,7 +376,7 @@ function LogRow({ log, t, last, navigate, index }) {
                 t={t}
                 accent="#4f8ef7"
               >
-                View Case →
+                {tr("viewCase")} →
               </HeaderBtn>
             </div>
           </div>
@@ -408,6 +409,7 @@ function CaseLogs() {
   const [filterField, setFilterField] = useState("ALL");
   const [filterOfficer, setFilterOfficer] = useState("ALL");
   const [lastSync, setLastSync] = useState(null);
+  const { lang, tr } = useLanguage();
 
   const t = THEMES[theme];
   const isDark = theme === "dark";
@@ -514,7 +516,7 @@ function CaseLogs() {
               letterSpacing: "0.13em",
               marginBottom: 6
             }}>
-              🚔 COATS · Activity Logs
+              🚔 COATS · {tr("activityLogs")}
             </div>
             <h1 style={{
               fontSize: "1.65rem",
@@ -522,7 +524,7 @@ function CaseLogs() {
               letterSpacing: "-0.025em",
               lineHeight: 1.2
             }}>
-              Case Update Logs
+              {tr("caseLogsHeader") || "Case Update Logs"}
             </h1>
             <div style={{
               fontFamily: "'JetBrains Mono',monospace",
@@ -531,16 +533,16 @@ function CaseLogs() {
               marginTop: 5
             }}>
               <span style={{ color: t.accent }}>{username}</span>
-              {" · "}{role === "SUPERVISOR" ? "Supervisor" : "Case Officer"}
+              {" · "}{role === "SUPERVISOR" ? tr("supervisor") : tr("caseOfficer")}
               {" · "}{branch}
-              {lastSync && <span style={{ marginLeft: 8 }}>· Synced {lastSync.toLocaleTimeString("en-IN")}</span>}
+              {lastSync && <span style={{ marginLeft: 8 }}>· {tr("synced")} {lastSync.toLocaleTimeString(lang === 'en' ? "en-IN" : (lang === 'hi' ? "hi-IN" : "ta-IN"))}</span>}
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 2 }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
-                {isDark ? "Dark" : "Light"}
+              <span style={{ fontFamily: "'JetBrains Mono’,monospace", fontSize: "0.7rem", color: t.textSecond }}>
+                {isDark ? tr("dark") : tr("light")}
               </span>
               <div
                 onClick={toggleTheme}
@@ -576,12 +578,12 @@ function CaseLogs() {
 
             {role === "SUPERVISOR" && (
               <HeaderBtn onClick={() => navigate("/dashboard")} t={t} accent={t.purple}>
-                📊 Dashboard
+                📊 {tr("dashboard")}
               </HeaderBtn>
             )}
 
             <HeaderBtn onClick={() => navigate("/cases")} t={t} accent={t.accent}>
-              📋 Cases
+              📋 {tr("cases")}
             </HeaderBtn>
 
             <HeaderBtn
@@ -590,7 +592,7 @@ function CaseLogs() {
               accent={t.red}
               outline
             >
-              Logout
+              {tr("logout")}
             </HeaderBtn>
           </div>
         </div>
@@ -603,11 +605,11 @@ function CaseLogs() {
           marginBottom: "1.5rem"
         }}>
           {[
-            { label: "Total Log Entries", value: logs.length, color: t.accent, icon: "📋" },
-            { label: "Updates Today", value: todayLogs, color: t.green, icon: "📅" },
-            { label: "Stage Changes", value: stageLogs, color: t.yellow, icon: "🔄" },
-            { label: "Action Updates", value: actionLogs, color: t.purple, icon: "📝" },
-            { label: "Blockchain Verified", value: verifiedLogs, color: "#34d399", icon: "⛓" },
+            { label: tr("logEntries"), value: logs.length, color: t.accent, icon: "📋" },
+            { label: tr("updatesToday"), value: todayLogs, color: t.green, icon: "📅" },
+            { label: tr("stageChanges"), value: stageLogs, color: t.yellow, icon: "🔄" },
+            { label: tr("actionUpdates"), value: actionLogs, color: t.purple, icon: "📝" },
+            { label: tr("blockchainVerified"), value: verifiedLogs, color: "#34d399", icon: "⛓" },
           ].map(({ label, value, color, icon }) => (
             <div key={label} style={{
               background: t.bgCard,
@@ -672,7 +674,7 @@ function CaseLogs() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by crime no., officer, value…"
+              placeholder={tr("searchLogs")}
               style={{
                 width: "100%",
                 padding: "0.6rem 0.75rem 0.6rem 2.1rem",
@@ -705,9 +707,9 @@ function CaseLogs() {
               cursor: "pointer"
             }}
           >
-            <option value="ALL">All Change Types</option>
+            <option value="ALL">{tr("allChangeTypes")}</option>
             {Object.entries(FIELD_META).map(([k, v]) => (
-              <option key={k} value={k}>{v.icon} {v.label}</option>
+              <option key={k} value={k}>{v.icon} {tr(v.labelKey)}</option>
             ))}
           </select>
 
@@ -726,7 +728,7 @@ function CaseLogs() {
               cursor: "pointer"
             }}
           >
-            <option value="ALL">All Officers</option>
+            <option value="ALL">{tr("allOfficers")}</option>
             {officers.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
 
@@ -736,7 +738,7 @@ function CaseLogs() {
             color: t.textMuted,
             whiteSpace: "nowrap"
           }}>
-            {filtered.length} of {logs.length} entries
+            {filtered.length} {tr("of")} {logs.length} {tr("entries")}
           </div>
         </div>
 
@@ -793,7 +795,7 @@ function CaseLogs() {
               fontSize: "0.8rem"
             }}>
               <div style={{ fontSize: "1.5rem", marginBottom: 10, opacity: 0.3 }}>⏳</div>
-              Loading activity logs…
+              {tr("loadingLogs")}
             </div>
           ) : filtered.length === 0 ? (
             <div style={{

@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
@@ -42,6 +42,7 @@ function Login() {
   const [answer2, setAnswer2]         = useState("");
   const [googleToken, setGoogleToken] = useState("");
   const navigate = useNavigate();
+  const { lang, tr, setLang } = useLanguage();
 
   const t      = THEMES[theme];
   const isDark = theme === "dark";
@@ -79,13 +80,12 @@ function Login() {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "MFA Setup failed");
+        if (!res.ok) throw new Error(data.detail || tr("mfaSetupFail") || "MFA Setup failed");
         
-        setSetupMfaRequired(false);
         setQ1(""); setQ2(""); setAnswer1(""); setAnswer2("");
         setPassword("");
         setGoogleToken("");
-        window.alert("Security questions saved securely! Please login again.");
+        window.alert(tr("mfaSuccess") || "Security questions saved securely! Please login again.");
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -116,7 +116,7 @@ function Login() {
           payloadBody.password = password; // Backend re-authenticates or checks password to be safe
         }
       } else {
-        throw new Error("Please enter credentials or sign in with Google.");
+        throw new Error(tr("enterCreds") || "Please enter credentials or sign in with Google.");
       }
 
       const res = await fetch(`${API_BASE}/api/token/`, {
@@ -126,7 +126,7 @@ function Login() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Authentication entry denied");
+      if (!res.ok) throw new Error(data.detail || tr("authDenied"));
 
       if (data.setup_mfa_required) {
         setSetupMfaRequired(true);
@@ -193,14 +193,23 @@ function Login() {
         position: "relative",
       }}>
 
-        {/* ── THEME TOGGLE ── */}
-        <div style={{ position: "absolute", top: 24, right: 24, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
-            {isDark ? "Dark" : "Light"}
-          </span>
-          <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer", transition: "background .25s" }}>
-            <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
-              {isDark ? "🌙" : "☀️"}
+        {/* ── THEME & LANG TOGGLE ── */}
+        <div style={{ position: "absolute", top: 24, right: 24, display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", gap: 4 }}>
+            {['en', 'ta', 'hi'].map(l => (
+              <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? t.accent : "transparent", color: lang === l ? "#fff" : t.textSecond, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px", fontSize: "0.65rem", cursor: "pointer", textTransform: "uppercase" }}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
+              {isDark ? tr("dark") : tr("light")}
+            </span>
+            <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer", transition: "background .25s" }}>
+              <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
+                {isDark ? "🌙" : "☀️"}
+              </div>
             </div>
           </div>
         </div>
@@ -219,7 +228,7 @@ function Login() {
               COATS
             </h1>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.14em", color: t.textMuted }}>
-              Cases of Anti-Terrorism Squad
+              {tr("fullTitle") || "Cases of Anti-Terrorism Squad"}
             </div>
           </div>
 
@@ -231,7 +240,7 @@ function Login() {
                 {/* Username */}
                 <div style={{ marginBottom: "1rem" }}>
                   <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6 }}>
-                    Username
+                    {tr("username")}
                   </label>
                   <input
                     value={username}
@@ -239,7 +248,7 @@ function Login() {
                       setUsername(e.target.value);
                       if (googleToken) setGoogleToken("");
                     }}
-                    placeholder="Enter your username"
+                    placeholder={tr("enterUser")}
                     required
                     autoComplete="username"
                     style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
@@ -251,7 +260,7 @@ function Login() {
                 {/* Password */}
                 <div style={{ marginBottom: "1.5rem" }}>
                   <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6 }}>
-                    Password
+                    {tr("password")}
                   </label>
                   <div style={{ position: "relative" }}>
                     <input
@@ -261,7 +270,7 @@ function Login() {
                         setPassword(e.target.value);
                         if (googleToken) setGoogleToken("");
                       }}
-                      placeholder="Enter your password"
+                      placeholder={tr("enterPass")}
                       required
                       autoComplete="current-password"
                       style={{ width: "100%", padding: "0.7rem 2.8rem 0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
@@ -281,14 +290,14 @@ function Login() {
                   {googleToken && (
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ fontSize: "0.7rem", color: t.green, fontFamily: "'JetBrains Mono',monospace" }}>
-                        ✓ Google Account Linked
+                        ✓ {tr("googleLinked")}
                       </div>
                       <button 
                         type="button" 
                         onClick={() => setGoogleToken("")} 
                         style={{ border: "none", background: "none", color: t.textMuted, fontSize: "0.6rem", textDecoration: "underline", cursor: "pointer" }}
                       >
-                        Cancel
+                        {tr("cancel")}
                       </button>
                     </div>
                   )}
@@ -298,29 +307,29 @@ function Login() {
             {setupMfaRequired && (
               <>
                 <div style={{ marginBottom: "1rem", color: t.accent, fontSize: "0.8rem", textAlign: "center", lineHeight: 1.5, background: `${t.accent}15`, padding: "10px", borderRadius: "8px" }}>
-                  First time login detected. Please define 2 personal security questions. Your answers will be securely hashed.
+                  {tr("mfaFirstTime")}
                 </div>
                 {/* Q1 Input */}
                 <div style={{ marginBottom: "1rem" }}>
                   <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6, lineHeight: 1.4 }}>
-                    Custom Question 1
+                    {tr("customQ")} 1
                   </label>
                   <input value={q1} onChange={e => setQ1(e.target.value)} required placeholder="e.g. Favorite color?" style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
-                  <input value={answer1} onChange={e => setAnswer1(e.target.value)} required placeholder="Answer" style={{ width: "100%", padding: "0.7rem 1rem", marginTop: "8px", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
+                  <input value={answer1} onChange={e => setAnswer1(e.target.value)} required placeholder={tr("answer")} style={{ width: "100%", padding: "0.7rem 1rem", marginTop: "8px", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
                 </div>
                 {/* Q2 Input */}
                 <div style={{ marginBottom: "1.5rem" }}>
                   <label style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, display: "block", marginBottom: 6, lineHeight: 1.4 }}>
-                    Custom Question 2
+                    {tr("customQ")} 2
                   </label>
                   <input value={q2} onChange={e => setQ2(e.target.value)} required placeholder="e.g. First pet's name?" style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
-                  <input value={answer2} onChange={e => setAnswer2(e.target.value)} required placeholder="Answer" style={{ width: "100%", padding: "0.7rem 1rem", marginTop: "8px", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
+                  <input value={answer2} onChange={e => setAnswer2(e.target.value)} required placeholder={tr("answer")} style={{ width: "100%", padding: "0.7rem 1rem", marginTop: "8px", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }} onFocus={e => e.target.style.borderColor = t.accent} onBlur={e => e.target.style.borderColor = t.border} />
                 </div>
 
                 {/* Google Link Option (Optional) during Setup */}
                 <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "12px", border: `1px dashed ${t.border}`, borderRadius: "12px" }}>
                    <div style={{ fontSize: "0.65rem", color: t.textMuted, textAlign: "center", marginBottom: "4px" }}>
-                      Link your Google account for easier login later (Optional)
+                      {tr("linkGoogle")}
                    </div>
                    <GoogleLogin
                     onSuccess={handleGoogleSuccess}
@@ -342,7 +351,7 @@ function Login() {
                   <input
                     value={answer1}
                     onChange={e => setAnswer1(e.target.value)}
-                    placeholder="Provide your answer"
+                    placeholder={tr("answer")}
                     required
                     style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
                     onFocus={e => e.target.style.borderColor = t.accent}
@@ -356,7 +365,7 @@ function Login() {
                   <input
                     value={answer2}
                     onChange={e => setAnswer2(e.target.value)}
-                    placeholder="Provide your answer"
+                    placeholder={tr("answer")}
                     required
                     style={{ width: "100%", padding: "0.7rem 1rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.88rem", outline: "none", transition: "border-color .2s" }}
                     onFocus={e => e.target.style.borderColor = t.accent}
@@ -372,7 +381,7 @@ function Login() {
               </div>
             )}
 
-            <LoginButton loading={loading} accent={t.accent} />
+            <LoginButton loading={loading} accent={t.accent} tr={tr} />
             
             {(mfaRequired || setupMfaRequired) && (
               <button
@@ -396,13 +405,13 @@ function Login() {
                 onMouseEnter={e => e.target.style.background = t.bgCardHover}
                 onMouseLeave={e => e.target.style.background = "transparent"}
               >
-                ← Back
+                ← {tr("back")}
               </button>
             )}
           </form>
 
           <div style={{ marginTop: "1rem", textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", color: t.textMuted }}>
-            Authorized personnel only · COATS v2.0
+            {tr("authPersonnel")} · COATS v2.0
           </div>
         </div>
 
@@ -424,7 +433,7 @@ function Login() {
   );
 }
 
-function LoginButton({ loading, accent }) {
+function LoginButton({ loading, accent, tr }) {
   const [hov, setHov] = useState(false);
   return (
     <button
@@ -444,7 +453,7 @@ function LoginButton({ loading, accent }) {
         boxShadow: hov && !loading ? `0 6px 20px ${accent}44` : "none",
       }}
     >
-      {loading ? "Authenticating…" : "Login →"}
+      {loading ? tr("authenticating") : tr("login") + " →"}
     </button>
   );
 }
