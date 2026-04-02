@@ -309,16 +309,4 @@ class Witness(models.Model):
 
     def __str__(self):
         return f"{self.case.crime_number} | {self.name} ({'Hostile' if self.is_hostile else 'Cooperative'})"
-class InsiderThreatAlert(models.Model):
-    user    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="threat_alerts")
-    score   = models.IntegerField(default=0)
-    reasons = models.TextField()
-    detected_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ["-detected_at"]
-        verbose_name = "Insider Threat Alert"
-        verbose_name_plural = "🚨 Insider Threat Alerts"
 
-    def __str__(self):
-        return f"THREAT: {self.user.username} | Score: {self.score}"
