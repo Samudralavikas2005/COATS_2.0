@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../i18n/LanguageContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -20,21 +21,13 @@ const THEMES = {
   },
 };
 
-const SUGGESTIONS = [
-  "What documents are needed for HC stage?",
-  "What is the difference between bailable and non-bailable offence?",
-  "What is the procedure for filing a chargesheet?",
-  "What is IPC 302 and its punishment?",
-  "When should a case move from UI to PT stage?",
-  "What is anticipatory bail under CrPC 438?",
-];
-
 function LegalAssistant() {
   const getTheme = () => {
     try { return localStorage.getItem("coats-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); }
     catch { return "dark"; }
   };
 
+  const { lang, tr } = useLanguage();
   const navigate       = useNavigate();
   const role           = localStorage.getItem("role");
   const username       = localStorage.getItem("username");
@@ -80,9 +73,9 @@ function LegalAssistant() {
       const res = await fetch(`${API_BASE}/api/ai/legal-assistant/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ message: msg, messages: history }),
+        body: JSON.stringify({ message: msg, messages: history, lang: lang }),
       });
-      if (!res.ok) throw new Error("Failed to get response");
+      if (!res.ok) throw new Error(tr("failedResponse"));
       const data = await res.json();
       setHistory(data.messages);
       setMessages(prev => [...prev, { role: "assistant", content: data.reply, ts: new Date() }]);
@@ -108,7 +101,8 @@ function LegalAssistant() {
     const token   = localStorage.getItem("access");
     const formData = new FormData();
     formData.append("file",    file);
-    formData.append("message", customMessage || "Please summarize this document and suggest next steps.");
+    formData.append("message", customMessage || tr("fileSummaryPrompt"));
+    formData.append("lang",    lang);
 
     try {
       const res = await fetch(`${API_BASE}/api/ai/legal-assistant/file/`, {
@@ -118,7 +112,7 @@ function LegalAssistant() {
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Failed to analyze file");
+        throw new Error(d.error || tr("failedFileAnalyze"));
       }
       const data = await res.json();
       setHistory(prev => [...prev, ...data.messages]);
@@ -131,7 +125,7 @@ function LegalAssistant() {
     if (!file) return;
     const allowed = ["application/pdf", "text/plain"];
     if (!allowed.includes(file.type) && !file.name.endsWith(".pdf") && !file.name.endsWith(".txt")) {
-      setError("Only PDF and TXT files are supported.");
+      setError(tr("unsupportedFile"));
       return;
     }
     setSelectedFile(file);
@@ -159,6 +153,11 @@ function LegalAssistant() {
     setSelectedFile(null);
   };
 
+  const SUGGESTIONS = [
+    tr("sug1"), tr("sug2"), tr("sug3"), 
+    tr("sug4"), tr("sug5"), tr("sug6")
+  ];
+
   return (
     <>
       <style>{`
@@ -179,14 +178,14 @@ function LegalAssistant() {
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, background: `${t.purple}22`, border: `1px solid ${t.purple}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem" }}>⚖️</div>
             <div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 2 }}>🚔 COATS · AI Legal Assistant</div>
-              <h1 style={{ fontSize: "1.2rem", fontWeight: 700, letterSpacing: "-0.02em" }}>Legal Assistant</h1>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 2 }}>🚔 COATS · {tr("legalAI")}</div>
+              <h1 style={{ fontSize: "1.2rem", fontWeight: 700, letterSpacing: "-0.02em" }}>{tr("legalAI")}</h1>
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>{isDark ? "Dark" : "Light"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>{isDark ? tr("dark") : tr("light")}</span>
               <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer" }}>
                 <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
                   {isDark ? "🌙" : "☀️"}
@@ -195,12 +194,12 @@ function LegalAssistant() {
             </div>
             {messages.length > 0 && (
               <button onClick={clearChat} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", borderRadius: 8, padding: "6px 14px", background: "transparent", border: `1px solid ${t.border}`, color: t.textSecond }}>
-                🗑 Clear
+                🗑 {tr("aiClear")}
               </button>
             )}
             <button onClick={() => navigate(role === "SUPERVISOR" ? "/dashboard" : "/cases")}
               style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", borderRadius: 8, padding: "6px 14px", background: "transparent", border: `1px solid ${t.border}`, color: t.textSecond }}>
-              ← Back
+              {tr("back")}
             </button>
           </div>
         </div>
@@ -212,9 +211,9 @@ function LegalAssistant() {
           {messages.length === 0 && (
             <div style={{ textAlign: "center", padding: "2rem 1rem", animation: "cFadeUp .4s ease" }}>
               <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚖️</div>
-              <h2 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: "0.5rem" }}>AI Legal Assistant</h2>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: "0.5rem" }}>{tr("legalAI")}</h2>
               <p style={{ color: t.textMuted, fontSize: "0.88rem", marginBottom: "1.5rem", lineHeight: 1.6 }}>
-                Ask legal questions or upload a case document (PDF/TXT)<br />for an instant AI summary and recommended next steps.
+                {tr("aiLead")}
               </p>
 
               {/* Upload zone */}
@@ -226,7 +225,7 @@ function LegalAssistant() {
                 style={{ border: `2px dashed ${dragOver ? t.purple : t.border}`, borderRadius: 16, padding: "1.5rem", marginBottom: "1.5rem", cursor: "pointer", transition: "all .2s", background: dragOver ? `${t.purple}08` : "transparent", maxWidth: 500, margin: "0 auto 1.5rem" }}>
                 <div style={{ fontSize: "1.8rem", marginBottom: 8 }}>📎</div>
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", color: t.textMuted }}>
-                  Drop a PDF or TXT file here, or click to browse
+                  {tr("dragDrop")}
                 </div>
                 <input ref={fileInputRef} type="file" accept=".pdf,.txt" style={{ display: "none" }} onChange={e => handleFileSelect(e.target.files[0])} />
               </div>
@@ -262,7 +261,7 @@ function LegalAssistant() {
                   {msg.isFile ? msg.content.split("\n").slice(1).join("\n") : msg.content}
                 </div>
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, marginTop: 6, textAlign: msg.role === "user" ? "right" : "left" }}>
-                  {msg.ts?.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                  {msg.ts?.toLocaleTimeString(lang === 'en' ? "en-IN" : (lang === 'hi' ? "hi-IN" : "ta-IN"), { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
               {msg.role === "user" && (
@@ -320,7 +319,7 @@ function LegalAssistant() {
                 onFocusCapture={e => e.currentTarget.style.borderColor = t.purple}
                 onBlurCapture={e => e.currentTarget.style.borderColor = t.border}>
                 <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
-                  placeholder={selectedFile ? "Add instructions for the file (optional)… or press Enter to analyze" : "Ask a legal question… (Enter to send)"}
+                  placeholder={tr("aiInputPlaceholder")}
                   rows={1} style={{ width: "100%", background: "transparent", border: "none", color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.9rem", resize: "none", lineHeight: 1.6, maxHeight: 120, overflowY: "auto" }} />
               </div>
 
@@ -333,7 +332,7 @@ function LegalAssistant() {
             </div>
 
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, textAlign: "center", marginTop: "0.5rem" }}>
-              Supports PDF and TXT files · AI responses are for reference only
+              {tr("aiDisclaimer")}
             </div>
           </div>
         </div>

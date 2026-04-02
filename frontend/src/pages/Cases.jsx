@@ -1,35 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { LanguageSwitcher, useLanguage } from '../i18n/LanguageContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-const THEMES = {
-  dark: {
-    bgBase: "#0b0e17", bgCard: "#141927", bgCardHover: "#1a2236",
-    border: "#222d42", textPrimary: "#e2e8f5", textSecond: "#7b8db0",
-    textMuted: "#637fae", accent: "#4f8ef7", green: "#34d399",
-    red: "#f87171", yellow: "#f5c842", purple: "#a78bfa",
-    shadow: "0 4px 24px rgba(0,0,0,0.4)", toggleBg: "#1a2236",
-  },
-  light: {
-    bgBase: "#eef2fb", bgCard: "#ffffff", bgCardHover: "#f5f8ff",
-    border: "#d2ddf0", textPrimary: "#111827", textSecond: "#4b5e80",
-    textMuted: "#434c5c", accent: "#2563eb", green: "#059669",
-    red: "#dc2626", yellow: "#d97706", purple: "#7c3aed",
-    shadow: "0 4px 20px rgba(20,40,100,0.10)", toggleBg: "#e2e8f7",
-  },
-};
-
 const STAGE = {
-  UI: { label: "Under Investigation", color: "#f5c842" },
-  PT: { label: "Pending Trial", color: "#a78bfa" },
-  HC: { label: "Pending before HC", color: "#fb923c" },
-  SC: { label: "Pending before SC", color: "#f87171" },
-  CC: { label: "Closed", color: "#34d399" },
+  UI: { labelKey: "underInvestigation", color: "#f5c842" },
+  PT: { labelKey: "pendingTrial", color: "#a78bfa" },
+  HC: { labelKey: "pendingHC", color: "#fb923c" },
+  SC: { labelKey: "pendingSC", color: "#f87171" },
+  CC: { labelKey: "closed", color: "#34d399" },
 };
 
-function StageBadge({ code }) {
-  const s = STAGE[code] || { label: code, color: "#8896b3" };
+function StageBadge({ code, tr }) {
+  const s = STAGE[code] || { labelKey: code, color: "#8896b3" };
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -42,7 +26,7 @@ function StageBadge({ code }) {
         display: "inline-block",
         animation: code !== "CC" ? "cPulse 2s infinite" : "none",
       }} />
-      {s.label}
+      {tr(s.labelKey) || code}
     </span>
   );
 }
@@ -68,7 +52,7 @@ function Btn({ children, onClick, t, accent, outline = false }) {
   );
 }
 
-function CaseRow({ c, t, last, navigate, index }) {
+function CaseRow({ c, t, tr, last, navigate, index }) {
   const [hov, setHov] = useState(false);
   return (
     <div
@@ -97,7 +81,7 @@ function CaseRow({ c, t, last, navigate, index }) {
         )}
       </div>
       <div style={{ alignSelf: "center" }}>
-        <StageBadge code={c.current_stage} />
+        <StageBadge code={c.current_stage} tr={tr} />
       </div>
       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.76rem", color: t.textMuted, alignSelf: "center" }}>
         {c.date_of_registration}
@@ -129,6 +113,7 @@ function Cases() {
   const username = localStorage.getItem("username");
   const branch = localStorage.getItem("branch");
   const navigate = useNavigate();
+  const { lang, tr } = useLanguage();
 
   const t = THEMES[theme];
   const isDark = theme === "dark";
@@ -210,46 +195,45 @@ function Cases() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
           <div>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>
-              🚔 COATS · Case Management
+              🚔 {tr("caseManagement")}
             </div>
             <h1 style={{ fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1.2 }}>
-              {role === "CASE" ? "My Cases" : "All Cases"}
+              {role === "CASE" ? tr("myCases") : tr("allCasesHeader")}
             </h1>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted, marginTop: 5 }}>
               <span style={{ color: t.accent }}>{username}</span>
-              {" · "}{role === "CASE" ? "Case Officer" : "Supervisor"}
+              {" · "}{role === "CASE" ? tr("caseOfficer") : tr("supervisor")}
               {" · "}{branch}
-              {lastSync && <span style={{ marginLeft: 8 }}>· Synced {lastSync.toLocaleTimeString("en-IN")}</span>}
+              {lastSync && <span style={{ marginLeft: 8 }}>· {tr("synced")} {lastSync.toLocaleTimeString(lang === 'en' ? "en-IN" : (lang === 'hi' ? "hi-IN" : "ta-IN"))}</span>}
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Theme toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>
-                {isDark ? "Dark" : "Light"}
+                {isDark ? tr("dark") : tr("light")}
               </span>
               <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer", transition: "background .25s" }}>
                 <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
                   {isDark ? "🌙" : "☀️"}
                 </div>
               </div>
+              <LanguageSwitcher t={t} />
             </div>
 
             {role === "SUPERVISOR" && (
-              <Btn onClick={() => navigate("/dashboard")} t={t} accent={t.purple}>📊 Dashboard</Btn>
+              <Btn onClick={() => navigate("/dashboard")} t={t} accent={t.purple}>📊 {tr("dashboard")}</Btn>
             )}
 
-            {/* Legal AI button added here */}
-            <Btn onClick={() => navigate("/legal-assistant")} t={t} accent={t.purple}>⚖️ Legal AI</Btn>
+            <Btn onClick={() => navigate("/legal-assistant")} t={t} accent={t.purple}>⚖️ {tr("legalAI")}</Btn>
 
-            <Btn onClick={() => navigate("/logs")} t={t} accent={t.accent}>📋 Logs</Btn>
+            <Btn onClick={() => navigate("/logs")} t={t} accent={t.accent}>📋 {tr("logs")}</Btn>
 
             {role === "CASE" && (
-              <Btn onClick={() => navigate("/create-case")} t={t} accent={t.green}>+ New Case</Btn>
+              <Btn onClick={() => navigate("/create-case")} t={t} accent={t.green}>{tr("newCase")}</Btn>
             )}
 
-            <Btn onClick={handleLogout} t={t} accent={t.red} outline>Logout</Btn>
+            <Btn onClick={handleLogout} t={t} accent={t.red} outline>{tr("logout")}</Btn>
           </div>
         </div>
 
@@ -270,7 +254,7 @@ function Cases() {
               }}
             >
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.09em", color: t.textMuted, marginBottom: 4 }}>
-                {s.label}
+                {tr(s.labelKey)}
               </div>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "1.5rem", fontWeight: 700, color: s.color }}>
                 {stageCount(code)}
@@ -286,7 +270,7 @@ function Cases() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by crime no., IPC section, complainant…"
+              placeholder={tr("searchPlaceholder")}
               style={{ width: "100%", padding: "0.6rem 0.75rem 0.6rem 2.2rem", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textPrimary, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.8rem", outline: "none", transition: "border-color .2s" }}
               onFocus={e => e.target.style.borderColor = t.accent}
               onBlur={e => e.target.style.borderColor = t.border}
@@ -297,13 +281,13 @@ function Cases() {
             onChange={e => setFilterStage(e.target.value)}
             style={{ padding: "0.6rem 1rem", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecond, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", outline: "none", cursor: "pointer" }}
           >
-            <option value="ALL">All Stages</option>
+            <option value="ALL">{tr("allStages")}</option>
             {Object.entries(STAGE).map(([code, s]) => (
-              <option key={code} value={code}>{s.label}</option>
+              <option key={code} value={code}>{tr(s.labelKey)}</option>
             ))}
           </select>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", color: t.textMuted, whiteSpace: "nowrap" }}>
-            {filtered.length} of {cases.length} cases
+            {filtered.length} {tr("of")} {cases.length} {tr("casesLabel")}
           </div>
         </div>
 
@@ -317,7 +301,7 @@ function Cases() {
         {/* CASES TABLE */}
         <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, boxShadow: t.shadow, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 1.5fr 1.2fr 0.5fr", padding: "0.6rem 1.2rem", borderBottom: `1px solid ${t.border}` }}>
-            {["Crime No.", "IPC Section", "Stage", "Date Filed", ""].map((h, i) => (
+            {[tr("crimeNo"), tr("ipcSection"), tr("stage"), tr("dateFiled"), ""].map((h, i) => (
               <div key={i} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted }}>
                 {h}
               </div>
@@ -327,26 +311,43 @@ function Cases() {
           {loading ? (
             <div style={{ padding: "3rem", textAlign: "center", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.8rem" }}>
               <div style={{ fontSize: "1.5rem", marginBottom: 10, opacity: 0.3 }}>⏳</div>
-              Loading cases…
+              {tr("loadingCases")}
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ padding: "3rem", textAlign: "center", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.8rem" }}>
               <div style={{ fontSize: "2rem", marginBottom: 10, opacity: 0.3 }}>📭</div>
-              {cases.length === 0 ? "No cases found." : "No cases match your search."}
+              {cases.length === 0 ? tr("noCasesFound") : tr("noMatches")}
             </div>
           ) : (
             filtered.map((c, i) => (
-              <CaseRow key={c.id} c={c} t={t} last={i === filtered.length - 1} navigate={navigate} index={i} />
+              <CaseRow key={c.id} c={c} t={t} tr={tr} last={i === filtered.length - 1} navigate={navigate} index={i} />
             ))
           )}
         </div>
 
         <div style={{ marginTop: "1rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted, textAlign: "center" }}>
-          Auto-refreshes every 10 seconds
+          {tr("autoRefresh")}
         </div>
       </div>
     </>
   );
 }
+
+const THEMES = {
+  dark: {
+    bgBase: "#0b0e17", bgCard: "#141927", bgCardHover: "#1a2236",
+    border: "#222d42", textPrimary: "#e2e8f5", textSecond: "#7b8db0",
+    textMuted: "#637fae", accent: "#4f8ef7", green: "#34d399",
+    red: "#f87171", yellow: "#f5c842", purple: "#a78bfa",
+    shadow: "0 4px 24px rgba(0,0,0,0.4)", toggleBg: "#1a2236",
+  },
+  light: {
+    bgBase: "#eef2fb", bgCard: "#ffffff", bgCardHover: "#f5f8ff",
+    border: "#d2ddf0", textPrimary: "#111827", textSecond: "#4b5e80",
+    textMuted: "#434c5c", accent: "#2563eb", green: "#059669",
+    red: "#dc2626", yellow: "#d97706", purple: "#7c3aed",
+    shadow: "0 4px 20px rgba(20,40,100,0.10)", toggleBg: "#e2e8f7",
+  },
+};
 
 export default Cases;

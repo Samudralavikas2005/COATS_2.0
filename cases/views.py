@@ -409,6 +409,11 @@ class LegalAssistantView(APIView):
     def post(self, request):
         user_message = request.data.get("message", "").strip()
         history = request.data.get("messages", [])
+        lang = request.data.get("lang", "en")
+
+        # Map codes to full names for the LLM
+        lang_map = {"en": "English", "ta": "Tamil", "hi": "Hindi"}
+        selected_lang = lang_map.get(lang, "English")
 
         if not user_message:
             return Response({"error": "Message is required"}, status=400)
@@ -423,7 +428,10 @@ class LegalAssistantView(APIView):
             messages = [
                 {
                     "role": "system",
-                    "content": """You are a legal assistant for COATS — the Cases of Anti-Terrorism Squad used by Tamil Nadu Police. You help Case Holding Officers and Supervisors with:
+                    "content": f"""You are a legal assistant for COATS — the Cases of Anti-Terrorism Squad used by Tamil Nadu Police. 
+IMPORTANT: Your response MUST be entirely in {selected_lang}.
+
+You help Case Holding Officers and Supervisors with:
 - Indian Penal Code (IPC) sections and their meanings
 - Criminal Procedure Code (CrPC) procedures
 - Court stages — UI, PT, HC, SC and what each requires

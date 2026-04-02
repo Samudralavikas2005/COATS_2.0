@@ -20,10 +20,10 @@ async function apiFetch(path) {
 }
 
 const SEV = {
-  Minor: { color: "#60a5fa", label: "Minor", ipcs: "279, 283, 290, 294, 341" },
-  Bailable: { color: "#34d399", label: "Bailable", ipcs: "323, 336, 379, 420, 504" },
-  "Non-Bailable": { color: "#f59e0b", label: "Non-Bailable", ipcs: "302, 307, 376, 395, 396" },
-  Heinous: { color: "#f87171", label: "Heinous", ipcs: "120B, 364A, 376A, 376D" },
+  Minor: { color: "#60a5fa", labelKey: "minor", ipcs: "279, 283, 290, 294, 341" },
+  Bailable: { color: "#34d399", labelKey: "bailable", ipcs: "323, 336, 379, 420, 504" },
+  "Non-Bailable": { color: "#f59e0b", labelKey: "nonBailable", ipcs: "302, 307, 376, 395, 396" },
+  Heinous: { color: "#f87171", labelKey: "heinous", ipcs: "120B, 364A, 376A, 376D" },
 };
 
 const THEMES = {
@@ -100,22 +100,23 @@ function EmptyState({ t, msg }) {
   );
 }
 
-function SeverityBadge({ severity }) {
-  const cfg = SEV[severity] || { color: "#8896b3", label: severity };
+function SeverityBadge({ severity, tr }) {
+  const cfg = SEV[severity] || { color: "#8896b3", labelKey: severity };
   return (
     <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 20, fontSize: "0.71rem", fontWeight: 600, fontFamily: "'Sora',sans-serif", background: `${cfg.color}1a`, color: cfg.color, border: `1px solid ${cfg.color}44` }}>
-      {cfg.label}
+      {tr(cfg.labelKey) || severity}
     </span>
   );
 }
 
-function StatusBadge({ status, t }) {
+function StatusBadge({ status, t, tr }) {
   const closed = status === "Closed";
+  const label = closed ? tr("closed") : tr("active");
   const color = closed ? t.green : t.yellow;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 10px", borderRadius: 20, fontSize: "0.71rem", fontWeight: 600, fontFamily: "'Sora',sans-serif", background: `${color}1a`, color, border: `1px solid ${color}44` }}>
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, display: "inline-block", animation: !closed ? "cPulse 2s infinite" : "none" }} />
-      {status}
+      {label || status}
     </span>
   );
 }
@@ -154,12 +155,12 @@ function KpiCard({ label, value, accent, icon, t }) {
   );
 }
 
-function ChartTooltip({ active, payload, label, t }) {
+function ChartTooltip({ active, payload, label, t, tr }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 10, padding: "8px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.textPrimary, boxShadow: t.shadow }}>
       <div style={{ color: t.textMuted, marginBottom: 3 }}>{label}</div>
-      <div style={{ color: t.accent, fontWeight: 700 }}>{payload[0].value} cases</div>
+      <div style={{ color: t.accent, fontWeight: 700 }}>{payload[0].value} {tr("cases").toLowerCase()}</div>
     </div>
   );
 }
@@ -172,7 +173,7 @@ export default function COATSDashboard() {
   const username = localStorage.getItem("username");
   const branch = localStorage.getItem("branch");
   const role = localStorage.getItem("role");
-  const { tr } = useLanguage();
+  const { lang, tr } = useLanguage();
 
   const getTheme = () => {
     try { return localStorage.getItem("coats-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); }
@@ -234,7 +235,7 @@ export default function COATSDashboard() {
         localStorage.clear();
         navigate("/login", { replace: true });
       } else {
-        setError("Could not reach the backend. Is Django running?");
+        setError(tr("backendError"));
         setLoading(false);
       }
     }
@@ -247,12 +248,12 @@ export default function COATSDashboard() {
   }, [loadDashboard]);
 
   const sevChartData = severity.map(s => ({
-    name: s.severity, total: s.total,
+    name: tr(SEV[s.severity]?.labelKey) || s.severity, total: s.total,
     fill: SEV[s.severity]?.color || "#8896b3",
   }));
 
-  const timeData = timeline.map(d => ({
-    label: new Date(d.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+  const timeChartData = timeline.map(d => ({
+    label: new Date(d.month).toLocaleDateString(lang === 'en' ? "en-IN" : (lang === 'hi' ? "hi-IN" : "ta-IN"), { month: "short", year: "2-digit" }),
     total: d.total,
   }));
 
@@ -272,7 +273,7 @@ export default function COATSDashboard() {
         {/* TOAST */}
         {flash && (
           <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, background: t.green, color: "#fff", padding: "10px 18px", borderRadius: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.82rem", boxShadow: `0 4px 20px ${t.green}66`, animation: "cSlide .3s ease", display: "flex", alignItems: "center", gap: 8 }}>
-            🔔 New case filed and recorded
+            🔔 {tr("saveCaseSuccess") || "New case filed and recorded"}
           </div>
         )}
 
@@ -281,14 +282,14 @@ export default function COATSDashboard() {
           <div>
             <div style={{ display: "flex", alignItems: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>
               <LiveDot color={loading ? t.yellow : t.green} />
-              {loading ? "Connecting…" : "Live · Polls every 5s"}
-              {lastSync && !loading && <span style={{ marginLeft: 10 }}>· Synced {lastSync.toLocaleTimeString("en-IN")}</span>}
+              {loading ? tr("connecting") : tr("livePoll")}
+              {lastSync && !loading && <span style={{ marginLeft: 10 }}>· {tr("synced")} {lastSync.toLocaleTimeString(lang === 'en' ? "en-IN" : (lang === 'hi' ? "hi-IN" : "ta-IN"))}</span>}
             </div>
             <h1 style={{ fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1.2 }}>
               🚔 {tr("commandCenter")}
             </h1>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", color: t.textMuted, marginTop: 5 }}>
-              {username && <>Logged in as <span style={{ color: t.accent }}>{username}</span> · {role === "SUPERVISOR" ? "Supervisor" : "Case Officer"} · {branch}</>}
+              {username && <>{tr("loggedInAs")} <span style={{ color: t.accent }}>{username}</span> · {role === "SUPERVISOR" ? tr("supervisor") : tr("caseOfficer")} · {branch}</>}
             </div>
           </div>
 
@@ -296,7 +297,7 @@ export default function COATSDashboard() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {/* Theme toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 2 }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>{isDark ? "Dark" : "Light"}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textSecond }}>{isDark ? tr("dark") : tr("light")}</span>
               <div onClick={toggleTheme} style={{ background: t.toggleBg, border: `1px solid ${t.border}`, borderRadius: 50, width: 62, height: 30, position: "relative", cursor: "pointer", transition: "background .25s" }}>
                 <div style={{ position: "absolute", width: 22, height: 22, borderRadius: "50%", background: t.accent, top: "50%", transform: `translateY(-50%) translateX(${isDark ? 4 : 36}px)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
                   {isDark ? "🌙" : "☀️"}
@@ -343,7 +344,7 @@ export default function COATSDashboard() {
           <Card t={t}>
             <SectionLabel t={t}>{tr("severityChart")}</SectionLabel>
             {sevChartData.length === 0 || sevChartData.every(d => d.total === 0) ? (
-              <EmptyState t={t} msg="No cases registered yet. Chart will populate once cases are filed." />
+              <EmptyState t={t} msg={tr("noCases")} />
             ) : (
               <>
                 <ResponsiveContainer width="100%" height={200}>
@@ -351,7 +352,7 @@ export default function COATSDashboard() {
                     <CartesianGrid stroke={t.chartGrid} vertical={false} />
                     <XAxis dataKey="name" tick={{ fill: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip content={<ChartTooltip t={t} />} />
+                    <Tooltip content={<ChartTooltip t={t} tr={tr} />} />
                     <Bar dataKey="total" radius={[6, 6, 0, 0]}>
                       {sevChartData.map((e, i) => <Cell key={i} fill={e.fill} />)}
                     </Bar>
@@ -361,7 +362,7 @@ export default function COATSDashboard() {
                   {Object.entries(SEV).map(([k, v]) => (
                     <div key={k} style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textSecond }}>
                       <span style={{ width: 8, height: 8, borderRadius: 2, background: v.color, display: "inline-block" }} />
-                      {v.label}
+                      {tr(v.labelKey)}
                     </div>
                   ))}
                 </div>
@@ -371,11 +372,11 @@ export default function COATSDashboard() {
 
           <Card t={t}>
             <SectionLabel t={t}>{tr("monthlyTrend")}</SectionLabel>
-            {timeData.length === 0 ? (
-              <EmptyState t={t} msg="Timeline builds as cases are filed over time." />
+            {timeChartData.length === 0 ? (
+              <EmptyState t={t} msg={tr("timelineHint")} />
             ) : (
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={timeData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={timeChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={t.accent} stopOpacity={0.18} />
@@ -385,7 +386,7 @@ export default function COATSDashboard() {
                   <CartesianGrid stroke={t.chartGrid} vertical={false} />
                   <XAxis dataKey="label" tick={{ fill: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip content={<ChartTooltip t={t} />} />
+                  <Tooltip content={<ChartTooltip t={t} tr={tr} />} />
                   <Line type="monotone" dataKey="total" stroke={t.accent} strokeWidth={2.5} dot={{ r: 4, fill: t.accent, strokeWidth: 0 }} activeDot={{ r: 6 }} fill="url(#lg)" />
                 </LineChart>
               </ResponsiveContainer>
@@ -396,9 +397,9 @@ export default function COATSDashboard() {
         {/* DONUT + IPC TABLE */}
         <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
           <Card t={t}>
-            <SectionLabel t={t}>Severity Distribution</SectionLabel>
+            <SectionLabel t={t}>{tr("severityDistribution")}</SectionLabel>
             {sevChartData.every(d => d.total === 0) ? (
-              <EmptyState t={t} msg="Awaiting cases." />
+              <EmptyState t={t} msg={tr("noCases")} />
             ) : (
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
@@ -417,7 +418,7 @@ export default function COATSDashboard() {
                     }}
                     labelStyle={{ color: t.textMuted, marginBottom: 3 }}
                     formatter={(value, name) => [
-                      <span style={{ color: t.accent, fontWeight: 700 }}>{value} cases</span>,
+                      <span style={{ color: t.accent, fontWeight: 700 }}>{value} {tr("cases").toLowerCase()}</span>,
                       <span style={{ color: t.textSecond }}>{name}</span>,
                     ]}
                   />
@@ -428,11 +429,11 @@ export default function COATSDashboard() {
           </Card>
 
           <Card t={t}>
-            <SectionLabel t={t}>Severity Breakdown — IPC Reference</SectionLabel>
+            <SectionLabel t={t}>{tr("severityBreakdown")}</SectionLabel>
             <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
               <thead>
                 <tr>
-                  {["Severity", "IPC Sections (examples)", "Cases", "% Share"].map(h => (
+                  {[tr("severity"), tr("ipcExamples"), tr("cases"), tr("share")].map(h => (
                     <th key={h} style={{ textAlign: "left", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.64rem", letterSpacing: "0.1em", textTransform: "uppercase", color: t.textMuted, padding: "0.4rem 0.75rem", borderBottom: `1px solid ${t.border}` }}>{h}</th>
                   ))}
                 </tr>
@@ -446,7 +447,7 @@ export default function COATSDashboard() {
                   const td = { padding: "0.6rem 0.75rem", borderBottom: last ? "none" : `1px solid ${t.border}` };
                   return (
                     <tr key={key}>
-                      <td style={td}><SeverityBadge severity={key} /></td>
+                      <td style={td}><SeverityBadge severity={key} tr={tr} /></td>
                       <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.73rem", color: t.textMuted }}>IPC {cfg.ipcs}</td>
                       <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.88rem", fontWeight: 700, color: cfg.color }}>{count}</td>
                       <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.textSecond }}>{pct}</td>
@@ -461,31 +462,31 @@ export default function COATSDashboard() {
         {/* RECENT CASES */}
         <Card t={t}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-            <SectionLabel t={t}>Recently Filed Cases</SectionLabel>
+            <SectionLabel t={t}>{tr("recentCases")}</SectionLabel>
             {recent.length > 0 && (
               <button
                 onClick={handleViewAllCases}
                 style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.68rem", background: "transparent", border: "none", color: t.accent, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3, padding: 0, marginBottom: "1rem" }}
               >
-                View all →
+                {tr("viewAll")}
               </button>
             )}
           </div>
 
           {recent.length === 0 ? (
-            <EmptyState t={t} msg={"No cases yet.\nNew cases appear here instantly when filed by Case Officers."} />
+            <EmptyState t={t} msg={tr("noCases")} />
           ) : (
             <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
               <thead>
                 <tr>
-                  {["Case / Crime No.", "IPC Section", "Severity", "Stage", "Date Filed"].map(h => (
+                  {[tr("caseCrimeNo"), tr("ipcSection"), tr("severity"), tr("stage"), tr("dateFiled")].map(h => (
                     <th key={h} style={{ textAlign: "left", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.64rem", letterSpacing: "0.1em", textTransform: "uppercase", color: t.textMuted, padding: "0.45rem 0.75rem", borderBottom: `1px solid ${t.border}` }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {recent.map((c, i) => (
-                  <RecentRow key={c.id} c={c} t={t} last={i === recent.length - 1} navigate={navigate} />
+                  <RecentRow key={c.id} c={c} t={t} tr={tr} last={i === recent.length - 1} navigate={navigate} />
                 ))}
               </tbody>
             </table>
@@ -496,7 +497,7 @@ export default function COATSDashboard() {
   );
 }
 
-function RecentRow({ c, t, last, navigate }) {
+function RecentRow({ c, t, tr, last, navigate }) {
   const [hov, setHov] = useState(false);
   const td = {
     padding: "0.65rem 0.75rem",
@@ -511,12 +512,12 @@ function RecentRow({ c, t, last, navigate }) {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       onClick={() => navigate(`/cases/${c.id}`)}
-      title="Click to view case detail"
+      title={tr("clickToView")}
     >
       <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.82rem", fontWeight: 600, color: t.accent }}>{c.case_number}</td>
       <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.textMuted }}>{c.ipc_section}</td>
-      <td style={td}><SeverityBadge severity={c.severity} /></td>
-      <td style={td}><StatusBadge status={c.status} t={t} /></td>
+      <td style={td}><SeverityBadge severity={c.severity} tr={tr} /></td>
+      <td style={td}><StatusBadge status={c.status} t={t} tr={tr} /></td>
       <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.textSecond }}>{c.date_of_registration}</td>
     </tr>
   );

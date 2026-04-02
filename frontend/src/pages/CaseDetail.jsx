@@ -21,25 +21,26 @@ const THEMES = {
 };
 
 const STAGE = {
-  UI: { label: "Under Investigation",          color: "#f5c842" },
-  PT: { label: "Pending Trial",                color: "#a78bfa" },
-  HC: { label: "Pending before High Court",    color: "#fb923c" },
-  SC: { label: "Pending before Supreme Court", color: "#f87171" },
-  CC: { label: "Case Closed",                  color: "#34d399" },
+  UI: { labelKey: "underInvestigation",          color: "#f5c842" },
+  PT: { labelKey: "pendingTrial",                color: "#a78bfa" },
+  HC: { labelKey: "pendingHC",                   color: "#fb923c" },
+  SC: { labelKey: "pendingSC",                   color: "#f87171" },
+  CC: { labelKey: "closed",                      color: "#34d399" },
 };
 
 const ACTION_META = {
-  CREATED:  { label: "Case Created",   icon: "🆕", color: "#34d399" },
-  VIEWED:   { label: "Case Viewed",    icon: "👁",  color: "#7b8db0" },
-  STAGE:    { label: "Stage Changed",  icon: "🔄", color: "#f5c842" },
-  ACTION:   { label: "Action Updated", icon: "📝", color: "#a78bfa" },
-  ASSIGNED: { label: "Case Assigned",  icon: "👮", color: "#4f8ef7" },
-  UPDATED:  { label: "Case Updated",   icon: "✏️", color: "#fb923c" },
+  CREATED:  { labelKey: "caseCreated",   icon: "🆕", color: "#34d399" },
+  VIEWED:   { labelKey: "caseViewed",    icon: "👁",  color: "#7b8db0" },
+  STAGE:    { labelKey: "stageChanged",  icon: "🔄", color: "#f5c842" },
+  ACTION:   { labelKey: "actionUpdated", icon: "📝", color: "#a78bfa" },
+  ASSIGNED: { labelKey: "caseAssigned",  icon: "👮", color: "#4f8ef7" },
+  UPDATED:  { labelKey: "caseUpdated",   icon: "✏️", color: "#fb923c" },
 };
 
-function formatDate(ts) {
+function formatDate(ts, lang = 'en') {
   if (!ts) return "—";
-  return new Date(ts).toLocaleString("en-IN", {
+  const locale = lang === 'en' ? "en-IN" : (lang === 'hi' ? "hi-IN" : "ta-IN");
+  return new Date(ts).toLocaleString(locale, {
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -67,17 +68,17 @@ function downloadReport(caseId, format) {
     .catch(err => alert("Report download failed: " + err.message));
 }
 
-function StageBadge({ code }) {
-  const s = STAGE[code] || { label: code, color: "#8896b3" };
+function StageBadge({ code, tr }) {
+  const s = STAGE[code] || { labelKey: code, color: "#8896b3" };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 14px", borderRadius: 20, fontSize: "0.75rem", fontWeight: 600, fontFamily: "'Sora',sans-serif", background: `${s.color}1a`, color: s.color, border: `1px solid ${s.color}44` }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, display: "inline-block", animation: code !== "CC" ? "cPulse 2s infinite" : "none" }} />
-      {s.label}
+      {tr(s.labelKey) || code}
     </span>
   );
 }
 
-function Field({ label, value, t }) {
+function Field({ label, value, t, tr }) {
   return (
     <div style={{ marginBottom: "1rem" }}>
       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.textMuted, marginBottom: 4 }}>{label}</div>
@@ -101,12 +102,12 @@ function Btn({ children, onClick, t, accent, outline = false, disabled = false, 
 }
 
 // ── Chain of Custody Timeline ─────────────────────────────────────
-function CustodyTimeline({ entries, t }) {
+function CustodyTimeline({ entries, t, tr, lang }) {
   if (!entries || entries.length === 0) {
     return (
       <div style={{ padding: "2.5rem", textAlign: "center", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>
         <div style={{ fontSize: "2rem", marginBottom: 10, opacity: 0.3 }}>🔗</div>
-        No custody entries yet.
+        {tr("noCustody")}
       </div>
     );
   }
@@ -114,7 +115,7 @@ function CustodyTimeline({ entries, t }) {
     <div style={{ position: "relative", padding: "0.5rem 0" }}>
       <div style={{ position: "absolute", left: "2.2rem", top: 0, bottom: 0, width: 2, background: t.border, zIndex: 0 }} />
       {entries.map((entry, i) => {
-        const meta   = ACTION_META[entry.action] || { label: entry.action, icon: "📌", color: t.accent };
+        const meta   = ACTION_META[entry.action] || { labelKey: entry.action, icon: "📌", color: t.accent };
         const isLast = i === entries.length - 1;
         return (
           <div key={entry.id} style={{ display: "flex", gap: "1.25rem", marginBottom: isLast ? 0 : "1.5rem", position: "relative", zIndex: 1 }}>
@@ -125,15 +126,15 @@ function CustodyTimeline({ entries, t }) {
             </div>
             <div style={{ flex: 1, background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "0.9rem 1.1rem", boxShadow: t.shadow }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: meta.color }}>{meta.label}</span>
+                <span style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: meta.color }}>{tr(meta.labelKey) || entry.action}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {entry.blockchain_tx && (
                     <a href={entry.blockchain_url} target="_blank" rel="noopener noreferrer"
                       style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "2px 8px", textDecoration: "none" }}>
-                      ⛓ Verified
+                      ⛓ {tr("verified")}
                     </a>
                   )}
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted }}>{formatDate(entry.timestamp)}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textMuted }}>{formatDate(entry.timestamp, lang)}</span>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -146,7 +147,7 @@ function CustodyTimeline({ entries, t }) {
               </div>
               {entry.reason && (
                 <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textPrimary, background: `${t.accent}08`, border: `1px solid ${t.accent}22`, borderRadius: 8, padding: "6px 10px", marginBottom: 6 }}>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>Reason: </span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>{tr("reason")}: </span>
                   {entry.reason}
                 </div>
               )}
@@ -154,11 +155,11 @@ function CustodyTimeline({ entries, t }) {
               {entry.old_value && entry.new_value && entry.action !== "VIEWED" && (
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                   <div style={{ flex: 1, background: `${t.red}0d`, border: `1px solid ${t.red}22`, borderRadius: 8, padding: "5px 10px", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", color: t.red }}>
-                    <div style={{ fontSize: "0.58rem", color: t.textMuted, marginBottom: 2 }}>BEFORE</div>{entry.old_value}
+                    <div style={{ fontSize: "0.58rem", color: t.textMuted, marginBottom: 2 }}>{tr("before")}</div>{entry.old_value}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", color: t.textMuted, fontSize: "0.8rem" }}>→</div>
                   <div style={{ flex: 1, background: `${t.green}0d`, border: `1px solid ${t.green}22`, borderRadius: 8, padding: "5px 10px", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.72rem", color: t.green }}>
-                    <div style={{ fontSize: "0.58rem", color: t.textMuted, marginBottom: 2 }}>AFTER</div>{entry.new_value}
+                    <div style={{ fontSize: "0.58rem", color: t.textMuted, marginBottom: 2 }}>{tr("after")}</div>{entry.new_value}
                   </div>
                 </div>
               )}
@@ -171,7 +172,7 @@ function CustodyTimeline({ entries, t }) {
 }
 
 // ── Progress Tab ──────────────────────────────────────────────────
-function ProgressTab({ caseId, role, t }) {
+function ProgressTab({ caseId, role, t, tr, lang }) {
   const [entries, setEntries]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -229,55 +230,55 @@ function ProgressTab({ caseId, role, t }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted }}>
-          📋 Investigation Progress — {entries.length} entries
+          📋 {tr("investigationProgress")} — {entries.length} {tr("casesLabel")}
         </div>
         {role === "CASE" && (
           <Btn onClick={() => setShowForm(s => !s)} t={t} accent={t.green} small>
-            {showForm ? "✕ Cancel" : "+ Add Progress"}
+            {showForm ? "✕ " + tr("cancel") : "+ " + tr("addProgress")}
           </Btn>
         )}
       </div>
 
       {showForm && (
         <div style={{ background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1.25rem" }}>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>New Progress Entry</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>{tr("newProgressEntry")}</div>
           {error && <div style={{ color: t.red, fontSize: "0.75rem", fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>⚠️ {error}</div>}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
             <div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Date *</div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>{tr("date")} *</div>
               <input type="date" value={form.date_of_progress} onChange={e => setForm({ ...form, date_of_progress: e.target.value })} style={inp} />
             </div>
             <div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Reminder Date</div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>{tr("reminderDate")}</div>
               <input type="date" value={form.reminder_date} onChange={e => setForm({ ...form, reminder_date: e.target.value })} style={inp} />
             </div>
           </div>
           <div style={{ marginBottom: "0.75rem" }}>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Details *</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>{tr("details")} *</div>
             <textarea value={form.details_of_progress} onChange={e => setForm({ ...form, details_of_progress: e.target.value })} rows={3} style={{ ...inp, resize: "vertical", lineHeight: 1.6 }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
             <div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Further Action</div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>{tr("furtherAction")}</div>
               <textarea value={form.further_action_to_be_taken} onChange={e => setForm({ ...form, further_action_to_be_taken: e.target.value })} rows={2} style={{ ...inp, resize: "vertical", lineHeight: 1.6 }} />
             </div>
             <div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Remarks</div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>{tr("remarks")}</div>
               <textarea value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} rows={2} style={{ ...inp, resize: "vertical", lineHeight: 1.6 }} />
             </div>
           </div>
           <Btn onClick={handleAdd} t={t} accent={t.green} disabled={saving}>
-            {saving ? "Saving…" : "✓ Save Progress Entry"}
+            {saving ? tr("loading") : "✓ " + tr("saveProgress")}
           </Btn>
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>Loading…</div>
+        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>{tr("loading")}</div>
       ) : entries.length === 0 ? (
         <div style={{ textAlign: "center", padding: "2.5rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>
           <div style={{ fontSize: "2rem", marginBottom: 10, opacity: 0.3 }}>📋</div>
-          No progress entries yet.
+          {tr("noProgress")}
         </div>
       ) : (
         entries.map((entry, i) => (
@@ -289,24 +290,24 @@ function ProgressTab({ caseId, role, t }) {
                 </span>
                 {entry.is_completed && (
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "1px 8px" }}>
-                    Completed
+                    {tr("completed")}
                   </span>
                 )}
                 {entry.blockchain_tx && (
                   <a href={entry.blockchain_url} target="_blank" rel="noopener noreferrer"
                     style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "1px 8px", textDecoration: "none" }}>
-                    ⛓ Verified
+                    ⛓ {tr("verified")}
                   </a>
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {entry.reminder_date && (
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.yellow }}>
-                    ⏰ Remind: {entry.reminder_date}
+                    ⏰ {tr("reminderDate")}: {entry.reminder_date}
                   </span>
                 )}
                 {role === "CASE" && !entry.is_completed && (
-                  <Btn onClick={() => handleComplete(entry.id)} t={t} accent={t.green} small>Mark Done</Btn>
+                  <Btn onClick={() => handleComplete(entry.id)} t={t} accent={t.green} small>{tr("markDone")}</Btn>
                 )}
               </div>
             </div>
@@ -317,20 +318,20 @@ function ProgressTab({ caseId, role, t }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: 8 }}>
                 {entry.further_action_to_be_taken && (
                   <div style={{ background: `${t.accent}08`, border: `1px solid ${t.accent}22`, borderRadius: 8, padding: "6px 10px" }}>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.58rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 3 }}>Further Action</div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.58rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 3 }}>{tr("furtherAction")}</div>
                     <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textSecond }}>{entry.further_action_to_be_taken}</div>
                   </div>
                 )}
                 {entry.remarks && (
                   <div style={{ background: `${t.purple}08`, border: `1px solid ${t.purple}22`, borderRadius: 8, padding: "6px 10px" }}>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.58rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 3 }}>Remarks</div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.58rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 3 }}>{tr("remarks")}</div>
                     <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textSecond }}>{entry.remarks}</div>
                   </div>
                 )}
               </div>
             )}
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted, marginTop: 8 }}>
-              Added by {entry.officer} · {formatDate(entry.created_at)}
+              {tr("addedBy")} {entry.officer} · {formatDate(entry.created_at, lang)}
             </div>
           </div>
         ))
@@ -340,7 +341,7 @@ function ProgressTab({ caseId, role, t }) {
 }
 
 // ── Handover Tab ──────────────────────────────────────────────────
-function HandoverTab({ caseId, caseData, t }) {
+function HandoverTab({ caseId, caseData, t, tr, lang }) {
   const [officers, setOfficers]       = useState([]);
   const [handovers, setHandovers]     = useState([]);
   const [toOfficerId, setToOfficerId] = useState("");
@@ -388,7 +389,7 @@ function HandoverTab({ caseId, caseData, t }) {
   return (
     <div>
       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>
-        👮 Case Handover — Reassign to Another Officer
+        👮 {tr("handover")}
       </div>
 
       <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1rem 1.2rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: 12 }}>
@@ -396,20 +397,20 @@ function HandoverTab({ caseId, caseData, t }) {
           {(caseData.case_holding_officer_username || "?")[0].toUpperCase()}
         </div>
         <div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textMuted, marginBottom: 2 }}>Current Officer</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.7rem", color: t.textMuted, marginBottom: 2 }}>{tr("currentOfficer")}</div>
           <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.9rem", fontWeight: 600, color: t.textPrimary }}>{caseData.case_holding_officer_username}</div>
         </div>
       </div>
 
       <div style={{ background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1.5rem" }}>
-        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>Reassign To</div>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>{tr("reassignTo")}</div>
         {error   && <div style={{ color: t.red,   fontSize: "0.75rem", fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>⚠️ {error}</div>}
         {success && <div style={{ color: t.green, fontSize: "0.75rem", fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>✅ {success}</div>}
 
         <div style={{ marginBottom: "0.75rem" }}>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Select Officer *</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>{tr("selectOfficer")} *</div>
           <select value={toOfficerId} onChange={e => setToOfficerId(e.target.value)} style={{ ...inp, cursor: "pointer" }}>
-            <option value="">— Select an officer —</option>
+            <option value="">— {tr("selectOfficer")} —</option>
             {officers.map(o => (
               <option key={o.id} value={o.id}>{o.username} ({o.branch})</option>
             ))}
@@ -417,19 +418,19 @@ function HandoverTab({ caseId, caseData, t }) {
         </div>
 
         <div style={{ marginBottom: "1rem" }}>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>Reason for Handover *</div>
-          <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Why is this case being reassigned?" style={{ ...inp, resize: "vertical", lineHeight: 1.6 }} />
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", textTransform: "uppercase", color: t.textMuted, marginBottom: 4 }}>{tr("reasonForHandover")} *</div>
+          <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} style={{ ...inp, resize: "vertical", lineHeight: 1.6 }} />
         </div>
 
         <Btn onClick={handleHandover} t={t} accent={t.purple} disabled={saving}>
-          {saving ? "Processing…" : "👮 Confirm Handover"}
+          {saving ? tr("loading") : "👮 " + tr("confirmHandover")}
         </Btn>
       </div>
 
       {handovers.length > 0 && (
         <div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "0.75rem" }}>
-            Handover History ({handovers.length})
+            {tr("handoverHistory")} ({handovers.length})
           </div>
           {handovers.map((h, i) => (
             <div key={h.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 10, padding: "0.9rem 1.1rem", marginBottom: i === handovers.length - 1 ? 0 : "0.5rem" }}>
@@ -440,12 +441,12 @@ function HandoverTab({ caseId, caseData, t }) {
                 {h.blockchain_tx && (
                   <a href={h.blockchain_url} target="_blank" rel="noopener noreferrer"
                     style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "1px 8px", textDecoration: "none", marginLeft: "auto" }}>
-                    ⛓ Verified
+                    ⛓ {tr("verified")}
                   </a>
                 )}
               </div>
               <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textSecond, marginBottom: 4 }}>{h.reason}</div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted }}>{formatDate(h.timestamp)}</div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted }}>{formatDate(h.timestamp, lang)}</div>
             </div>
           ))}
         </div>
@@ -455,7 +456,7 @@ function HandoverTab({ caseId, caseData, t }) {
 }
 
 
-function RecommendationsTab({ caseId, t, navigate }) {
+function RecommendationsTab({ caseId, t, navigate, tr }) {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -475,7 +476,7 @@ function RecommendationsTab({ caseId, t, navigate }) {
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, color: t.textMuted, fontSize: "0.8rem", fontFamily: "'JetBrains Mono',monospace", padding: "2rem" }}>
       <div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${t.accent}33`, borderTopColor: t.accent, animation: "cPulse 1s infinite linear" }} />
-      Analyzing patterns for related cases...
+      {tr("analyzingPatterns")}
     </div>
   );
 
@@ -483,8 +484,8 @@ function RecommendationsTab({ caseId, t, navigate }) {
     return (
       <div style={{ background: `${t.accent}08`, border: `1px dashed ${t.border}`, borderRadius: 16, padding: "3rem 2rem", textAlign: "center", color: t.textMuted, animation: "cFadeIn 0.5s ease-out" }}>
         <div style={{ fontSize: "2rem", marginBottom: 12, opacity: 0.5 }}>🧠</div>
-        <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.95rem", fontWeight: 600, color: t.textPrimary, marginBottom: 4 }}>No direct matches found</div>
-        <div style={{ fontSize: "0.8rem", maxWidth: 300, margin: "0 auto", lineHeight: 1.5 }}>Our intelligence system didn't find other cases with matching accused or crime patterns at this moment.</div>
+        <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.95rem", fontWeight: 600, color: t.textPrimary, marginBottom: 4 }}>{tr("noMatchesFound")}</div>
+        <div style={{ fontSize: "0.8rem", maxWidth: 300, margin: "0 auto", lineHeight: 1.5 }}>{tr("noMatches")}</div>
       </div>
     );
   }
@@ -492,8 +493,8 @@ function RecommendationsTab({ caseId, t, navigate }) {
   return (
     <div style={{ animation: "cFadeIn 0.4s ease-out" }}>
       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>🧠 Smart Recommendations</span>
-        <div style={{ padding: "2px 8px", background: `linear-gradient(45deg, ${t.accent}, ${t.purple})`, color: "#fff", borderRadius: 4, fontSize: "0.5rem", fontWeight: 800, letterSpacing: "0.05em" }}>AI POWERED</div>
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>🧠 {tr("smartRecommendations")}</span>
+        <div style={{ padding: "2px 8px", background: `linear-gradient(45deg, ${t.accent}, ${t.purple})`, color: "#fff", borderRadius: 4, fontSize: "0.5rem", fontWeight: 800, letterSpacing: "0.05em" }}>{tr("aiPowered")}</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.25rem" }}>
         {recommendations.map(rec => (
@@ -506,15 +507,15 @@ function RecommendationsTab({ caseId, t, navigate }) {
           onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.boxShadow = "none"; }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.accent }}>{rec.crime_number}</span>
-              <StageBadge code={rec.current_stage} />
+              <StageBadge code={rec.current_stage} tr={tr} />
             </div>
             <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.95rem", fontWeight: 700, color: t.textPrimary, marginBottom: 6, lineHeight: 1.3 }}>{rec.section_of_law}</div>
             <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textSecond, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.5 }}>
-              <span style={{ opacity: 0.6 }}>Accused:</span> {rec.accused_details || "N/A"}
+              <span style={{ opacity: 0.6 }}>{tr("accused")}:</span> {rec.accused_details || "N/A"}
             </div>
             <div style={{ marginTop: 15, paddingTop: 12, borderTop: `1px solid ${t.border}44`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: "0.7rem", color: t.textMuted, display: "flex", alignItems: "center", gap: 4 }}>📍 {rec.branch}</span>
-              <div style={{ fontSize: "0.65rem", color: t.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>View Intelligence →</div>
+              <div style={{ fontSize: "0.65rem", color: t.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{tr("viewIntelligence")} →</div>
             </div>
           </div>
         ))}
@@ -524,13 +525,12 @@ function RecommendationsTab({ caseId, t, navigate }) {
 }
 
 // ── Evidence Tab ──────────────────────────────────────────────────
-function EvidenceTab({ caseId, role, isClosed, t }) {
+function EvidenceTab({ caseId, role, t, tr, lang }) {
   const [evidence, setEvidence] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [file, setFile] = useState(null);
-  const [desc, setDesc] = useState("");
+  const [loading, setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
+  const [desc, setDesc]         = useState("");
+  const fileRef                 = useRef();
 
   const fetchEvidence = useCallback(() => {
     const token = localStorage.getItem("access");
@@ -544,95 +544,89 @@ function EvidenceTab({ caseId, role, isClosed, t }) {
 
   useEffect(() => { fetchEvidence(); }, [fetchEvidence]);
 
-  const handleUpload = async () => {
-    if (!file) return setError("Please select a file to upload.");
-    setUploading(true); setError("");
-    const token = localStorage.getItem("access");
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("description", desc);
-
+    formData.append("description", desc || file.name);
+    
+    const token = localStorage.getItem("access");
     try {
       const res = await fetch(`${API_BASE}/api/cases/${caseId}/evidence/`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      if (!res.ok) throw new Error("Upload failed. Ensure you are a Case Officer.");
-      setFile(null); setDesc("");
-      document.getElementById("ev_file_input").value = "";
+      if (!res.ok) throw new Error("Upload failed");
+      setDesc("");
       fetchEvidence();
-    } catch (err) { setError(err.message); }
+    } catch (err) { alert(err.message); }
     finally { setUploading(false); }
   };
 
-  const inp = { width: "100%", padding: "0.6rem 0.9rem", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 9, color: t.textPrimary, fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", outline: "none" };
-
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted }}>
-          📁 Digital Evidence Vault — {evidence.length} files
+          📂 {tr("evidenceVault")} — {evidence.length} {tr("casesLabel")}
+        </div>
+        {role === "CASE" && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type="text" placeholder={tr("description")} value={desc} onChange={e => setDesc(e.target.value)}
+              style={{ padding: "6px 12px", background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: "0.75rem", color: t.textPrimary, width: 140 }} />
+            <input type="file" ref={fileRef} onChange={handleUpload} style={{ display: "none" }} />
+            <Btn onClick={() => fileRef.current.click()} t={t} accent={t.accent} small disabled={uploading}>
+              {uploading ? tr("uploading") : "+ " + tr("uploadEvidence")}
+            </Btn>
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: `${t.accent}0a`, border: `1px solid ${t.accent}22`, borderRadius: 12, padding: "0.9rem 1.1rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ fontSize: "1.3rem" }}>⛓️</div>
+        <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.78rem", color: t.textSecond, lineHeight: 1.4 }}>
+          {tr("blockchainHint")}
         </div>
       </div>
 
-      {role === "CASE" && !isClosed && (
-        <div style={{ background: t.bgBase, border: `1px dashed ${t.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1.5rem" }}>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>Upload Evidence (Immutable)</div>
-          {error && <div style={{ color: t.red, fontSize: "0.75rem", fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>⚠️ {error}</div>}
-          
-          <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end" }}>
-            <div style={{ flex: 1 }}>
-              <input type="file" id="ev_file_input" onChange={e => setFile(e.target.files[0])} style={{ ...inp, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", padding: "0.5rem" }} />
-            </div>
-            <div style={{ flex: 2 }}>
-              <input type="text" placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} style={inp} />
-            </div>
-            <Btn onClick={handleUpload} t={t} accent={t.purple} disabled={uploading}>
-              {uploading ? "Encrypting & Uploading…" : "⬆ Upload to Vault"}
-            </Btn>
-          </div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted, marginTop: 8 }}>
-            Files are immediately hashed (SHA-256) and anchored to the Sepolia blockchain for tamper-proof verification.
-          </div>
-        </div>
-      )}
-
       {loading ? (
-        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>Loading vault…</div>
+        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>{tr("loading")}</div>
       ) : evidence.length === 0 ? (
         <div style={{ textAlign: "center", padding: "2.5rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>
           <div style={{ fontSize: "2rem", marginBottom: 10, opacity: 0.3 }}>📁</div>
-          No evidence uploaded yet.
+          {tr("noCasesFound")}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
-          {evidence.map(ev => (
-            <div key={ev.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.2rem", boxShadow: t.shadow, wordBreak: "break-all" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
-                <a href={ev.file} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.purple, textDecoration: "underline", textDecorationStyle: "dashed", textUnderlineOffset: 4 }}>
-                  {ev.file_name} ↗
-                </a>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.purple}22`, color: t.purple, borderRadius: 4 }}>{ev.file_type}</span>
-              </div>
-              
-              {ev.description && <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.8rem", color: t.textPrimary, marginBottom: 8 }}>{ev.description}</div>}
-              
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted, background: `${t.bgBase}88`, padding: "6px", borderRadius: 6, marginBottom: 8 }}>
-                <div style={{ color: t.accent }}>SHA-256 Hash</div>
-                {ev.file_hash}
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, borderTop: `1px solid ${t.border}55`, paddingTop: 8 }}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textSecond }}>
-                  By {ev.uploaded_by_username} · {(ev.file_size / 1024 / 1024).toFixed(2)} MB
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" }}>
+          {evidence.map(item => (
+            <div key={item.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1rem", position: "relative", boxShadow: t.shadow }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
+                  {item.file_type.includes("image") ? "🖼️" : item.file_type.includes("pdf") ? "📄" : "📁"}
                 </div>
-                {ev.blockchain_tx && (
-                  <a href={ev.blockchain_url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "2px 8px", textDecoration: "none" }}>
-                    ⛓ Blockchain Verified
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <a href={item.file} target="_blank" rel="noopener noreferrer" 
+                    style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: t.textPrimary, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {item.description || item.file_name}
                   </a>
-                )}
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted }}>{(item.file_size/1024).toFixed(1)} KB · {item.file_type.split("/")[1]?.toUpperCase()}</div>
+                </div>
+              </div>
+              {item.blockchain_tx && (
+                <div style={{ background: `${t.green}10`, border: `1px solid ${t.green}33`, borderRadius: 6, padding: "4px 8px", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: t.green }} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.green, fontWeight: 600 }}>{tr("blockchainVerified")}</span>
+                  <a href={item.blockchain_url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", fontSize: "0.6rem", color: t.textMuted }}>VIEW TX</a>
+                </div>
+              )}
+              <div style={{ borderTop: `1px solid ${t.border}44`, paddingTop: 8, marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 16, height: 16, borderRadius: "50%", background: t.border, fontSize: "0.55rem", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>{(item.uploaded_by_username || "?")[0].toUpperCase()}</div>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted }}>{item.uploaded_by_username}</span>
+                </div>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted }}>{formatDate(item.uploaded_at, lang)}</span>
               </div>
             </div>
           ))}
@@ -643,7 +637,7 @@ function EvidenceTab({ caseId, role, isClosed, t }) {
 }
 
 // ── Witness Tab ───────────────────────────────────────────────────
-function WitnessTab({ caseId, role, isClosed, t }) {
+function WitnessTab({ caseId, role, t, tr, lang }) {
   const [witnesses, setWitnesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -677,7 +671,7 @@ function WitnessTab({ caseId, role, isClosed, t }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error("Failed to add witness. Ensure you are a Case Officer.");
+      if (!res.ok) throw new Error("Failed to add witness");
       setForm({ name: "", age: "", gender: "M", address: "", phone: "", relationship: "", statement: "", is_hostile: false, is_section_164: false, protection_status: "NONE" });
       setShowForm(false);
       fetchWitnesses();
@@ -691,62 +685,62 @@ function WitnessTab({ caseId, role, isClosed, t }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted }}>
-          👥 Witness Management — {witnesses.length} records
+          👥 {tr("witnessManagement")} — {witnesses.length} {tr("casesLabel")}
         </div>
-        {role === "CASE" && !isClosed && (
+        {role === "CASE" && (
           <Btn onClick={() => setShowForm(s => !s)} t={t} accent={t.yellow} small>
-            {showForm ? "✕ Cancel" : "+ Add Witness"}
+            {showForm ? "✕ " + tr("cancel") : "+ " + tr("addWitness")}
           </Btn>
         )}
       </div>
 
       {showForm && (
         <div style={{ background: t.bgBase, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1.25rem" }}>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>Register Witness Statement (Immutable)</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", textTransform: "uppercase", color: t.textMuted, marginBottom: "1rem" }}>{tr("registerWitness")}</div>
           {error && <div style={{ color: t.red, fontSize: "0.75rem", fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>⚠️ {error}</div>}
           
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
-            <input type="text" placeholder="Full Name *" value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={inp} />
-            <input type="number" placeholder="Age" value={form.age} onChange={e => setForm({...form, age: e.target.value})} style={inp} />
+            <input type="text" placeholder={tr("fullName") + " *"} value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={inp} />
+            <input type="number" placeholder={tr("age")} value={form.age} onChange={e => setForm({...form, age: e.target.value})} style={inp} />
             <select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} style={inp}>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="O">Other</option>
+              <option value="M">{tr("male")}</option>
+              <option value="F">{tr("female")}</option>
+              <option value="O">{tr("other")}</option>
             </select>
           </div>
           
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
-            <input type="text" placeholder="Phone Number" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={inp} />
-            <input type="text" placeholder="Relationship to case/accused" value={form.relationship} onChange={e => setForm({...form, relationship: e.target.value})} style={inp} />
+            <input type="text" placeholder={tr("phone")} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={inp} />
+            <input type="text" placeholder={tr("relationship")} value={form.relationship} onChange={e => setForm({...form, relationship: e.target.value})} style={inp} />
           </div>
 
           <div style={{ marginBottom: "0.75rem" }}>
-            <textarea placeholder="Witness Statement * (Cannot be edited once saved)" value={form.statement} onChange={e => setForm({...form, statement: e.target.value})} rows={4} style={{...inp, resize: "vertical"}} />
+            <textarea placeholder={tr("statement") + " *"} value={form.statement} onChange={e => setForm({...form, statement: e.target.value})} rows={4} style={{...inp, resize: "vertical"}} />
           </div>
 
           <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1.25rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", color: t.textPrimary }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
               <input type="checkbox" checked={form.is_section_164} onChange={e => setForm({...form, is_section_164: e.target.checked})} />
-              Recorded under Sec 164 CrPC (Magistrate)
+              {tr("sec164")}
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
               <input type="checkbox" checked={form.is_hostile} onChange={e => setForm({...form, is_hostile: e.target.checked})} />
-              Turned Hostile
+              {tr("hostile")}
             </label>
           </div>
 
           <Btn onClick={handleAdd} t={t} accent={t.yellow} disabled={saving}>
-            {saving ? "Anchoring to Blockchain…" : "✓ Save Immutable Statement"}
+            {saving ? tr("loading") : "✓ " + tr("saveStatement")}
           </Btn>
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>Loading witnesses…</div>
+        <div style={{ textAlign: "center", padding: "2rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>{tr("loading")}</div>
       ) : witnesses.length === 0 ? (
         <div style={{ textAlign: "center", padding: "2.5rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem" }}>
           <div style={{ fontSize: "2rem", marginBottom: 10, opacity: 0.3 }}>👥</div>
-          No witnesses recorded yet.
+          {tr("noCasesFound")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -755,10 +749,32 @@ function WitnessTab({ caseId, role, isClosed, t }) {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontFamily: "'Sora',sans-serif", fontSize: "1.05rem", fontWeight: 700, color: t.textPrimary }}>{w.name}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textSecondary }}>{w.age ? `${w.age} yrs` : "Age NA"} · {w.gender}</span>
-                  {w.is_section_164 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.accent}22`, color: t.accent, borderRadius: 4 }}>Sec 164 CrPC</span>}
-                  {w.is_hostile && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.red}22`, color: t.red, borderRadius: 4 }}>Hostile</span>}
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.65rem", color: t.textSecondary }}>{w.age ? `${w.age} ${tr("yrs")}` : tr("ageNA")} · {w.gender === 'M' ? tr("male") : w.gender === 'F' ? tr("female") : tr("other")}</span>
+                  {w.is_section_164 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.accent}22`, color: t.accent, borderRadius: 4 }}>{tr("sec164")}</span>}
+                  {w.is_hostile && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", padding: "2px 6px", background: `${t.red}22`, color: t.red, borderRadius: 4 }}>{tr("hostile")}</span>}
                 </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {w.blockchain_tx && (
+                    <a href={w.blockchain_url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "2px 8px", textDecoration: "none" }}>
+                      ⛓ {tr("verified")}
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", color: t.textPrimary, lineHeight: 1.6, background: `${t.bgBase}66`, padding: "10px", borderRadius: 8, borderLeft: `3px solid ${w.is_hostile ? t.red : t.accent}` }}>
+                {w.statement}
+              </div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.62rem", color: t.textMuted, marginTop: 10 }}>
+                {tr("recordedBy")} {w.recorded_by_username} · {formatDate(w.recorded_at, lang)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
                 {w.blockchain_tx && (
                   <a href={w.blockchain_url} target="_blank" rel="noopener noreferrer"
                     style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.green, background: `${t.green}15`, border: `1px solid ${t.green}33`, borderRadius: 20, padding: "2px 8px", textDecoration: "none" }}>
@@ -798,6 +814,7 @@ function CaseDetail() {
   const { id }   = useParams();
   const navigate = useNavigate();
   const role     = localStorage.getItem("role");
+  const { lang, tr } = useLanguage();
 
   const [theme, setTheme]         = useState(getTheme);
   const [caseData, setCaseData]   = useState(null);
@@ -843,7 +860,7 @@ function CaseDetail() {
   const canEdit  = role === "CASE" && !isClosed;
 
   const handleUpdate = async () => {
-    if (!form.reason.trim()) { setError("A reason is mandatory when updating a case."); return; }
+    if (!form.reason.trim()) { setError(tr("reason") + " " + tr("required")); return; }
     const token = localStorage.getItem("access");
     setSaving(true);
     try {
@@ -874,13 +891,13 @@ function CaseDetail() {
   });
 
   const TABS = [
-    { key: "details",  label: "📋 Case Details" },
-    { key: "evidence", label: "📁 Evidence Vault" },
-    { key: "witnesses",label: "👥 Witnesses" },
-    { key: "progress", label: "📊 Progress" },
-    { key: "custody",  label: `🔗 Custody (${custody.length})` },
-    { key: "recommendations", label: "🧠 Related Cases" },
-    ...(role === "SUPERVISOR" ? [{ key: "handover", label: "👮 Handover" }] : []),
+    { key: "details",  label: "📋 " + tr("overview") },
+    { key: "evidence", label: "📁 " + tr("evidence") },
+    { key: "witnesses",label: "👥 " + tr("witnesses") },
+    { key: "progress", label: "📊 " + tr("progress") },
+    { key: "custody",  label: `🔗 ${tr("custody")} (${custody.length})` },
+    { key: "recommendations", label: "🧠 " + tr("recommendations") },
+    ...(role === "SUPERVISOR" ? [{ key: "handover", label: "👮 " + tr("handover") }] : []),
   ];
 
   return (
@@ -901,11 +918,11 @@ function CaseDetail() {
         {/* ── HEADER ── */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "2rem" }}>
           <div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>🚔 COATS · Case Detail</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 6 }}>🚨 COATS · {tr("caseDetail")}</div>
             <h1 style={{ fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1.2 }}>
-              {caseData ? caseData.crime_number : "Loading…"}
+              {caseData ? caseData.crime_number : tr("loading")}
             </h1>
-            {caseData && <div style={{ marginTop: 8 }}><StageBadge code={caseData.current_stage} /></div>}
+            {caseData && <div style={{ marginTop: 8 }}><StageBadge code={caseData.current_stage} tr={tr} /></div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -922,7 +939,7 @@ function CaseDetail() {
                 <Btn onClick={() => downloadReport(id, "csv")} t={t} accent={t.green} small>⬇ CSV</Btn>
               </>
             )}
-            <Btn onClick={() => navigate("/cases")} t={t} accent={t.accent} outline>← Back</Btn>
+            <Btn onClick={() => navigate("/cases")} t={t} accent={t.accent} outline>← {tr("back")}</Btn>
           </div>
         </div>
 
@@ -931,11 +948,11 @@ function CaseDetail() {
           <div style={{ background: `${t.red}15`, border: `1px solid ${t.red}44`, borderRadius: 10, padding: "10px 16px", marginBottom: "1.5rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.red }}>⚠️ {error}</div>
         )}
         {saved && (
-          <div style={{ background: `${t.green}15`, border: `1px solid ${t.green}44`, borderRadius: 10, padding: "10px 16px", marginBottom: "1.5rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.green }}>✅ Case updated successfully. Redirecting…</div>
+          <div style={{ background: `${t.green}15`, border: `1px solid ${t.green}44`, borderRadius: 10, padding: "10px 16px", marginBottom: "1.5rem", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.78rem", color: t.green }}>✅ {tr("caseUpdated")}</div>
         )}
         {!caseData && !error && (
           <div style={{ textAlign: "center", padding: "4rem", color: t.textMuted, fontFamily: "'JetBrains Mono',monospace", fontSize: "0.8rem" }}>
-            <div style={{ fontSize: "1.5rem", marginBottom: 10, opacity: 0.3 }}>⏳</div>Loading case details…
+            <div style={{ fontSize: "1.5rem", marginBottom: 10, opacity: 0.3 }}>⏳</div>{tr("loadingCases")}
           </div>
         )}
 
@@ -943,7 +960,7 @@ function CaseDetail() {
           <div style={{ animation: "cFadeIn .35s ease" }}>
 
             {/* ── TABS ── */}
-            <div style={{ display: "flex", gap: 4, marginBottom: "1.5rem", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: 4, width: "fit-content" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: "1.5rem", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: 4, width: "fit-content" }}>
               {TABS.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", borderRadius: 8, padding: "8px 18px", transition: "all .2s", border: "none", background: activeTab === tab.key ? t.accent : "transparent", color: activeTab === tab.key ? "#fff" : t.textSecond }}>
@@ -955,30 +972,30 @@ function CaseDetail() {
             {/* ── DETAILS TAB ── */}
             {activeTab === "details" && (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
                   <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>Case Information</div>
-                    <Field label="Branch"               value={caseData.branch}               t={t} />
-                    <Field label="PS Limit"             value={caseData.ps_limit}             t={t} />
-                    <Field label="Crime No."            value={caseData.crime_number}         t={t} />
-                    <Field label="IPC Section"          value={caseData.section_of_law}       t={t} />
-                    <Field label="Date of Occurrence"   value={caseData.date_of_occurrence}   t={t} />
-                    <Field label="Date of Registration" value={caseData.date_of_registration} t={t} />
-                    {role === "SUPERVISOR" && <Field label="Case Handler" value={caseData.case_holding_officer_username} t={t} />}
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>{tr("overview")}</div>
+                    <Field label={tr("branch")}               value={caseData.branch}               t={t} tr={tr} />
+                    <Field label="PS Limit"             value={caseData.ps_limit}             t={t} tr={tr} />
+                    <Field label={tr("crimeNo")}            value={caseData.crime_number}         t={t} tr={tr} />
+                    <Field label="IPC Section"          value={caseData.section_of_law}       t={t} tr={tr} />
+                    <Field label="Date of Occurrence"   value={caseData.date_of_occurrence}   t={t} tr={tr} />
+                    <Field label="Date of Registration" value={caseData.date_of_registration} t={t} tr={tr} />
+                    {role === "SUPERVISOR" && <Field label="Case Handler" value={caseData.case_holding_officer_username} t={t} tr={tr} />}
                   </div>
                   <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem" }}>Parties & Gist</div>
-                    <Field label="Complainant"     value={caseData.complainant_name} t={t} />
-                    <Field label="Accused Details" value={caseData.accused_details}  t={t} />
-                    <Field label="Gist of Case"    value={caseData.gist_of_case}     t={t} />
+                    <Field label="Complainant"     value={caseData.complainant_name} t={t} tr={tr} />
+                    <Field label="Accused Details" value={caseData.accused_details}  t={t} tr={tr} />
+                    <Field label="Gist of Case"    value={caseData.gist_of_case}     t={t} tr={tr} />
                   </div>
                 </div>
 
                 <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span>Case Status & Action</span>
-                    {isClosed && <span style={{ background: `${t.green}18`, color: t.green, border: `1px solid ${t.green}44`, borderRadius: 20, padding: "2px 10px", fontSize: "0.68rem" }}>🔒 Case Closed — Read Only</span>}
-                    {role === "SUPERVISOR" && !isClosed && <span style={{ background: `${t.yellow}18`, color: t.yellow, border: `1px solid ${t.yellow}44`, borderRadius: 20, padding: "2px 10px", fontSize: "0.68rem" }}>👁 Supervisor View — Read Only</span>}
+                    {isClosed && <span style={{ background: `${t.green}18`, color: t.green, border: `1px solid ${t.green}44`, borderRadius: 20, padding: "2px 10px", fontSize: "0.68rem" }}>🔒 Case Closed</span>}
+                    {role === "SUPERVISOR" && !isClosed && <span style={{ background: `${t.yellow}18`, color: t.yellow, border: `1px solid ${t.yellow}44`, borderRadius: 20, padding: "2px 10px", fontSize: "0.68rem" }}>👁 Supervisor View</span>}
                   </div>
 
                   <div style={{ marginBottom: "1.25rem" }}>
@@ -988,7 +1005,7 @@ function CaseDetail() {
                       onFocus={e => canEdit && (e.target.style.borderColor = t.accent)}
                       onBlur={e => e.target.style.borderColor = t.border}>
                       {Object.entries(STAGE).map(([code, s]) => (
-                        <option key={code} value={code}>{s.label}</option>
+                        <option key={code} value={code}>{tr(s.labelKey)}</option>
                       ))}
                     </select>
                   </div>
@@ -1003,9 +1020,9 @@ function CaseDetail() {
                   {canEdit && (
                     <div style={{ marginBottom: "1.5rem" }}>
                       <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.63rem", textTransform: "uppercase", letterSpacing: "0.1em", color: t.red, marginBottom: 6 }}>
-                        Reason for Update <span style={{ color: t.red }}>*</span>
+                        {tr("reason")} <span style={{ color: t.red }}>*</span>
                       </div>
-                      <textarea value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} placeholder="Mandatory — explain why you are making this update…" rows={3}
+                      <textarea value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} placeholder="..." rows={3}
                         style={{ ...inputStyle(true), borderColor: form.reason.trim() ? t.border : `${t.red}66` }}
                         onFocus={e => e.target.style.borderColor = t.accent}
                         onBlur={e => e.target.style.borderColor = form.reason.trim() ? t.border : `${t.red}66`} />
@@ -1013,8 +1030,8 @@ function CaseDetail() {
                   )}
 
                   <div style={{ display: "flex", gap: 10 }}>
-                    {canEdit && <Btn onClick={handleUpdate} t={t} accent={t.green} disabled={saving}>{saving ? "Saving…" : "✓ Update Case"}</Btn>}
-                    <Btn onClick={() => navigate("/cases")} t={t} accent={t.accent} outline>← Back to Cases</Btn>
+                    {canEdit && <Btn onClick={handleUpdate} t={t} accent={t.green} disabled={saving}>{saving ? tr("loading") : "✓ " + tr("editCase")}</Btn>}
+                    <Btn onClick={() => navigate("/cases")} t={t} accent={t.accent} outline>← {tr("back")}</Btn>
                   </div>
                 </div>
               </>
@@ -1023,21 +1040,21 @@ function CaseDetail() {
             {/* ── EVIDENCE TAB ── */}
             {activeTab === "evidence" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
-                <EvidenceTab caseId={id} role={role} isClosed={isClosed} t={t} />
+                <EvidenceTab caseId={id} role={role} t={t} tr={tr} lang={lang} />
               </div>
             )}
 
             {/* ── WITNESS TAB ── */}
             {activeTab === "witnesses" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
-                <WitnessTab caseId={id} role={role} isClosed={isClosed} t={t} />
+                <WitnessTab caseId={id} role={role} t={t} tr={tr} lang={lang} />
               </div>
             )}
 
             {/* ── PROGRESS TAB ── */}
             {activeTab === "progress" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
-                <ProgressTab caseId={id} role={role} t={t} />
+                <ProgressTab caseId={id} role={role} t={t} tr={tr} lang={lang} />
               </div>
             )}
 
@@ -1045,24 +1062,24 @@ function CaseDetail() {
             {activeTab === "custody" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.67rem", textTransform: "uppercase", letterSpacing: "0.12em", color: t.textMuted, marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span>🔗 Chain of Custody — {caseData.crime_number}</span>
-                  <span style={{ color: t.accent }}>{custody.length} entries</span>
+                  <span>🔗 {tr("custody")} — {caseData.crime_number}</span>
+                  <span style={{ color: t.accent }}>{custody.length} {tr("casesLabel")}</span>
                 </div>
-                <CustodyTimeline entries={custody} t={t} />
+                <CustodyTimeline entries={custody} t={t} tr={tr} lang={lang} />
               </div>
             )}
 
             {/* ── HANDOVER TAB ── */}
             {activeTab === "handover" && role === "SUPERVISOR" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "1.5rem", boxShadow: t.shadow }}>
-                <HandoverTab caseId={id} caseData={caseData} t={t} />
+                <HandoverTab caseId={id} caseData={caseData} t={t} tr={tr} lang={lang} />
               </div>
             )}
 
             {/* ── RECOMMENDATIONS TAB ── */}
             {activeTab === "recommendations" && (
               <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 16, padding: "2rem", boxShadow: t.shadow }}>
-                <RecommendationsTab caseId={id} t={t} navigate={navigate} />
+                <RecommendationsTab caseId={id} t={t} navigate={navigate} tr={tr} />
               </div>
             )}
 
