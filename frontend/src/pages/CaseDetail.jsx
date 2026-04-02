@@ -531,6 +531,7 @@ function EvidenceTab({ caseId, role, t, tr, lang }) {
   const [loading, setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
   const [desc, setDesc]         = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
   const fileRef                 = useRef();
 
   const fetchEvidence = useCallback(() => {
@@ -605,14 +606,21 @@ function EvidenceTab({ caseId, role, t, tr, lang }) {
             <div key={item.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1rem", position: "relative", boxShadow: t.shadow }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
-                  {item.file_type.includes("image") ? "🖼️" : item.file_type.includes("pdf") ? "📄" : "📁"}
+                  {(item.file_type || "").includes("image") ? "🖼️" : (item.file_type || "").includes("pdf") ? "📄" : "📁"}
                 </div>
                 <div style={{ flex: 1, overflow: "hidden" }}>
-                  <a href={item.file} target="_blank" rel="noopener noreferrer" 
-                    style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: t.textPrimary, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.description || item.file_name}
-                  </a>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted }}>{(item.file_size/1024).toFixed(1)} KB · {item.file_type.split("/")[1]?.toUpperCase()}</div>
+                  {(item.file_type || "").includes("image") ? (
+                    <button onClick={() => setSelectedImage(item.file)}
+                      style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: t.textPrimary, textDecoration: "underline", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
+                      {item.description || item.file_name}
+                    </button>
+                  ) : (
+                    <a href={item.file} target="_blank" rel="noopener noreferrer" 
+                      style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: t.textPrimary, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.description || item.file_name}
+                    </a>
+                  )}
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted }}>{(item.file_size/1024).toFixed(1)} KB · {(item.file_type || "UNKNOWN/UNKNOWN").split("/")[1]?.toUpperCase() || "FILE"}</div>
                 </div>
               </div>
               {item.blockchain_tx && (
@@ -631,6 +639,14 @@ function EvidenceTab({ caseId, role, t, tr, lang }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Image Overlay */}
+      {selectedImage && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem" }} onClick={() => setSelectedImage(null)}>
+          <img src={selectedImage} alt="Evidence" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }} onClick={e => e.stopPropagation()} />
+          <button onClick={() => setSelectedImage(null)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", borderRadius: "50%", width: 40, height: 40, fontSize: "1.5rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.2s" }} onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.3)"} onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.2)"}>×</button>
         </div>
       )}
     </div>
