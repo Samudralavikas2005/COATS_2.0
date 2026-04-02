@@ -611,17 +611,26 @@ function EvidenceTab({ caseId, role, t, tr, lang }) {
                 <div style={{ flex: 1, overflow: "hidden" }}>
                   {(item.file_type || "").toLowerCase().includes("image") ? (
                     <button onClick={() => setSelectedImage(item.file)}
-                      style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: t.textPrimary, textDecoration: "underline", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
-                      {item.description || item.file_name}
+                      style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.purple, textDecoration: "underline", textDecorationStyle: "dashed", textUnderlineOffset: 4, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
+                      {item.file_name} ↗
                     </button>
                   ) : (
                     <a href={item.file} target="_blank" rel="noopener noreferrer" 
-                      style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: t.textPrimary, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.description || item.file_name}
+                      style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.85rem", fontWeight: 700, color: t.purple, textDecoration: "underline", textDecorationStyle: "dashed", textUnderlineOffset: 4, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.file_name} ↗
                     </a>
                   )}
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted }}>{(item.file_size/1024).toFixed(1)} KB · {item.file_type || "FILE"}</div>
                 </div>
+              </div>
+
+              {item.description && item.description !== item.file_name && (
+                <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "0.78rem", color: t.textPrimary, marginBottom: 8 }}>{item.description}</div>
+              )}
+
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.58rem", color: t.textMuted, background: `${t.bgBase}88`, padding: "6px 8px", borderRadius: 6, marginBottom: 8 }}>
+                <div style={{ color: t.accent, fontSize: "0.5rem", textTransform: "uppercase", marginBottom: 2 }}>SHA-256 Hash</div>
+                <div style={{ overflowWrap: "anywhere" }}>{item.file_hash}</div>
               </div>
               {item.blockchain_tx && (
                 <div style={{ background: `${t.green}10`, border: `1px solid ${t.green}33`, borderRadius: 6, padding: "4px 8px", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
