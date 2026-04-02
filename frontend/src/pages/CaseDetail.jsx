@@ -606,10 +606,10 @@ function EvidenceTab({ caseId, role, t, tr, lang }) {
             <div key={item.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 12, padding: "1rem", position: "relative", boxShadow: t.shadow }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
-                  {(item.file_type || "").includes("image") ? "🖼️" : (item.file_type || "").includes("pdf") ? "📄" : "📁"}
+                  {(item.file_type || "").toLowerCase().includes("image") ? "🖼️" : (item.file_type || "").toLowerCase().includes("pdf") ? "📄" : "📁"}
                 </div>
                 <div style={{ flex: 1, overflow: "hidden" }}>
-                  {(item.file_type || "").includes("image") ? (
+                  {(item.file_type || "").toLowerCase().includes("image") ? (
                     <button onClick={() => setSelectedImage(item.file)}
                       style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", fontFamily: "'Sora',sans-serif", fontSize: "0.85rem", fontWeight: 600, color: t.textPrimary, textDecoration: "underline", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
                       {item.description || item.file_name}
@@ -620,7 +620,7 @@ function EvidenceTab({ caseId, role, t, tr, lang }) {
                       {item.description || item.file_name}
                     </a>
                   )}
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted }}>{(item.file_size/1024).toFixed(1)} KB · {(item.file_type || "UNKNOWN/UNKNOWN").split("/")[1]?.toUpperCase() || "FILE"}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: "0.6rem", color: t.textMuted }}>{(item.file_size/1024).toFixed(1)} KB · {item.file_type || "FILE"}</div>
                 </div>
               </div>
               {item.blockchain_tx && (
